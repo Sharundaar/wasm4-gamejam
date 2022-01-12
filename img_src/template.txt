@@ -1,0 +1,13 @@
+package main
+import "w4"
+
+Image :: struct { w, h: u32, bytes: []u8, flags: w4.Blit_Flags }
+Images : struct {
+{{#sprites}}
+	{{odinName}}: Image,
+{{/sprites}}
+} = {
+{{#sprites}}
+	{ {{width}}, {{height}}, { {{bytes}} }, {{odinFlags}} },
+{{/sprites}}
+}
