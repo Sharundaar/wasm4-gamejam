@@ -3,23 +3,20 @@ package main
 import "w4"
 import "core:fmt"
 import "core:runtime"
+import "core:math"
 
 ivec2 :: distinct [2]i32
 
-smiley := [8]u8{
-	0b11000011,
-	0b10000001,
-	0b00100100,
-	0b00100100,
-	0b00000000,
-	0b00100100,
-	0b10011001,
-	0b11000011,
+AnimationFlag :: enum {
+	FlipX,
+	FlipY,
 }
+AnimationFlags :: distinct bit_set[AnimationFlag; u8]
 
 AnimationFrame :: struct {
 	length: u8,
 	x_offs: u8,
+	flags : AnimationFlags,
 }
 
 AnimatedSprite :: struct {
@@ -28,20 +25,6 @@ AnimatedSprite :: struct {
 	frames: []AnimationFrame,
 	current_frame: u32,
 	frame_counter: u32,
-}
-
-BatAnimation := AnimatedSprite {
-	&Images.bat, 8, 8,
-	{
-		AnimationFrame{ 15, 0 },
-		AnimationFrame{ 15, 8 },
-	},
-	0, 0,
-}
-
-GameState :: enum {
-	Normal,
-	Transition,
 }
 
 GameData : struct {
@@ -61,6 +44,13 @@ TileDefinition :: struct {
 	solid: bool,
 }
 
+Light :: struct {
+	enabled: bool,
+	pos: ivec2,
+	s: f32,
+	r: f32,
+}
+
 TileChunk :: struct {
 	// indices into the map tiledef array
 	tiles: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H]u8,
@@ -71,6 +61,45 @@ TileMap :: struct {
 	tileset: ^Image,
 	tiledef: []TileDefinition,
 }
+
+
+lights : [8]Light
+tiledef := []TileDefinition{
+	{ { 16, 0 }, true }, // wall
+	{ { 16*2, 0 }, false }, // floor
+	{ { 0, 16 }, true }, // light from outside
+	{ { 16, 16 }, true }, // door
+}
+
+BatAnimation := AnimatedSprite {
+	&Images.bat, 8, 8,
+	{
+		AnimationFrame{ 15, 0, nil },
+		AnimationFrame{ 15, 8, nil },
+	},
+	0, 0,
+}
+
+FireAnimation := AnimatedSprite {
+	&Images.fire, 16, 16,
+	{
+		AnimationFrame{ 15, 0, nil },
+		AnimationFrame{ 15, 0, { .FlipX } },
+	},
+	0, 0,
+}
+
+smiley := [8]u8{
+	0b11000011,
+	0b10000001,
+	0b00100100,
+	0b00100100,
+	0b00000000,
+	0b00100100,
+	0b10011001,
+	0b11000011,
+}
+
 
 print :: proc "contextless" ( args: ..any ) {
 	context = runtime.default_context()
@@ -124,19 +153,83 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 
 
 DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32 ) {
-	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(sprite.frames[sprite.current_frame].x_offs), 0, int(sprite.img.w), sprite.img.flags )
+	frame := &sprite.frames[sprite.current_frame]
+	flags := sprite.img.flags
+	flags += {.FLIPX} if AnimationFlag.FlipX in frame.flags else nil
+	flags += {.FLIPY} if AnimationFlag.FlipY in frame.flags else nil
+	
+	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), 0, int(sprite.img.w), flags )
 	sprite.frame_counter += 1
-	if sprite.frame_counter >= u32(sprite.frames[sprite.current_frame].length) {
+	if sprite.frame_counter >= u32(frame.length) {
 		sprite.frame_counter = 0
 		sprite.current_frame = u32( int( sprite.current_frame + 1 ) % len( sprite.frames ) )
 	}
 }
 
-tiledef := []TileDefinition{
-	{ { 16, 0 }, true }, // wall
-	{ { 16*2, 0 }, false }, // floor
-	{ { 0, 16 }, true }, // light from outside
-	{ { 16, 16 }, true }, // door
+r : f32 = 0.125
+GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
+	DW, DH :: 160, 128
+	texture : [(DW/8)*DH]u8
+
+	color_at_px_for_light :: proc "contextless" ( l: Light, x, y: i32 ) -> f32 {
+		if !l.enabled do return 0
+		pxx, pyy := f32(l.pos.x + 4) / DW, f32(l.pos.y + 4) / DH
+		xx, yy := f32(x) / DW, f32(y) / DH
+		xx -= pxx
+		yy -= pyy
+		xx *= l.s
+		yy *= l.s
+		c := math.sqrt(xx*xx+yy*yy)
+		if c >= 1 do return 0
+		return 1 - c
+	}
+
+	nearest :: proc "contextless" ( c: f32 ) -> u8 {
+		if c > 0.5 do return 1
+		else do return 0
+	}
+
+	bayer_matrix := [4][4]f32 {
+		{    -0.5,       0,  -0.375,   0.125 },
+		{    0.25,   -0.25,   0.375, - 0.125 },
+		{ -0.3125,  0.1875, -0.4375,  0.0625 },
+		{  0.4375, -0.0625,  0.3125, -0.1875 },
+	}
+
+	for y in i32(0)..<DH do for x in i32(0)..<DW {
+		c : u8
+		for l in lights {
+			c += nearest( color_at_px_for_light(l, x, y) + l.r * bayer_matrix[y % 4][x % 4] )
+		}
+		if c > 1 do c = 1
+		bit := u32( y * DW + x )
+		idx := bit / 8
+		bit = (8-(bit % 8)) - 1
+		texture[idx] = texture[idx] | (c << bit)
+	}
+	w4.blit( &texture[0], 0, 0, DW, DH )
+}
+
+GlobalCoordinates :: struct {
+	chunk: ivec2,
+	offsets: ivec2,
+}
+
+RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
+	result := coord
+	for n in 0..<2 {
+		l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
+		l *= TILE_SIZE
+		for result.offsets[n] >= l {
+			result.offsets[n] -= l
+			result.chunk[n] += 1
+		}
+		for result.offsets[n] < 0 {
+			result.offsets[n] += l
+			result.chunk[n] -= 1
+		}
+	}
+	return result
 }
 
 @export
@@ -192,28 +285,16 @@ start :: proc "c" () {
 	}
 	tilemap.tileset = &Images.tileset
 	tilemap.tiledef = tiledef
-}
 
-GlobalCoordinates :: struct {
-	chunk: ivec2,
-	offsets: ivec2,
-}
+	lights[0].enabled = true
+	lights[0].r = 0.125
+	lights[0].s = 4.0
 
-RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
-	result := coord
-	for n in 0..<2 {
-		l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
-		l *= TILE_SIZE
-		for result.offsets[n] >= l {
-			result.offsets[n] -= l
-			result.chunk[n] += 1
-		}
-		for result.offsets[n] < 0 {
-			result.offsets[n] += l
-			result.chunk[n] -= 1
-		}
-	}
-	return result
+	lights[1].enabled = true
+	lights[1].pos.x = 64
+	lights[1].pos.y = 24
+	lights[1].r = 0.125
+	lights[1].s = 1.0
 }
 
 @export
@@ -223,10 +304,6 @@ update :: proc "c" () {
 	DrawTileChunk( &tilemap, player_pos.chunk.x, player_pos.chunk.y, 0, 0 )
 
 	w4.DRAW_COLORS^ = 0x0002
-	if .A in w4.GAMEPAD1^ {
-		w4.DRAW_COLORS^ = 0x0004
-	}
-
 	new_player_pos := player_pos
 	if .LEFT in w4.GAMEPAD1^ {
 		new_player_pos.offsets.x -= 1
@@ -252,10 +329,8 @@ update :: proc "c" () {
 
 	player_pos = RegularizeCoordinate( new_player_pos )
 
+	lights[0].pos = player_pos.offsets
 	w4.blit(&smiley[0], player_pos.offsets.x, player_pos.offsets.y, 8, 8)
-
-	w4.text("Hello from Odin!", 16, 130)
-	w4.text("Press X to blink", 16, 140)
 
 	{
 		w4.DRAW_COLORS^ = 0x4320
@@ -267,4 +342,16 @@ update :: proc "c" () {
 		w4.DRAW_COLORS^ = 0x4320
 		DrawAnimatedSprite( &BatAnimation, 40, 20 )
 	}
+	w4.DRAW_COLORS^ = 0x4230
+	DrawAnimatedSprite( &FireAnimation, 60, 20 )
+
+	w4.DRAW_COLORS^ = 0x0004
+	GenerateDitherPattern(0,0)
+
+	w4.DRAW_COLORS^ = 0x0002
+	if .A in w4.GAMEPAD1^ {
+		w4.DRAW_COLORS^ = 0x0004
+	}
+	w4.text("Hello from Odin!", 16, 130)
+	w4.text("Press X to blink", 16, 140)
 }
