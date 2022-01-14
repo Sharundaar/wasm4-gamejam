@@ -29,19 +29,30 @@ AnimatedSprite :: struct {
 
 GameGlob :: struct {
 	tilemap: TileMap,
+	active_chunk_coords: ivec2,
 }
 s_gglob : GameGlob
 
-TILE_SIZE : i32 : 16
-TILE_CHUNK_COUNT_W : i32 : 10
-TILE_CHUNK_COUNT_H : i32 : 9
+GlobalCoordinates :: struct {
+	chunk: ivec2,
+	offsets: ivec2,
+}
 
-TILEMAP_CHUNK_COUNT_W : i32 : 10
-TILEMAP_CHUNK_COUNT_H : i32 : 10
-
-TileDefinition :: struct {
-	offsets: ivec2, // offsets in the source texture
-	solid: bool,
+RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
+	result := coord
+	for n in 0..<2 {
+		l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
+		l *= TILE_SIZE
+		for result.offsets[n] >= l {
+			result.offsets[n] -= l
+			result.chunk[n] += 1
+		}
+		for result.offsets[n] < 0 {
+			result.offsets[n] += l
+			result.chunk[n] -= 1
+		}
+	}
+	return result
 }
 
 Light :: struct {
@@ -50,20 +61,8 @@ Light :: struct {
 	s: f32,
 	r: f32,
 }
-
-TileChunk :: struct {
-	// indices into the map tiledef array
-	tiles: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H]u8,
-}
-
-TileMap :: struct {
-	chunks: [TILEMAP_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_H]TileChunk,
-	tileset: ^Image,
-	tiledef: []TileDefinition,
-}
-
-
 lights : [8]Light
+
 tiledef := []TileDefinition{
 	{ { 16, 0 }, true }, // wall
 	{ { 16*2, 0 }, false }, // floor
@@ -89,48 +88,12 @@ FireAnimation := AnimatedSprite {
 	0, 0,
 }
 
-smiley := [8]u8{
-	0b11000011,
-	0b10000001,
-	0b00100100,
-	0b00100100,
-	0b00000000,
-	0b00100100,
-	0b10011001,
-	0b11000011,
-}
-
 
 print :: proc "contextless" ( args: ..any ) {
 	context = runtime.default_context()
 	buffer : [256]u8
 	str := fmt.bprint( buffer[:], args )
 	w4.trace( str )
-}
-
-IsCollidingWithTilemap :: proc "contextless" ( tilemap: ^TileMap, top_left: GlobalCoordinates, w, h: i32 ) -> bool {
-	tile_pos_min := top_left.offsets / TILE_SIZE
-	if tile_pos_min.x < 0 do tile_pos_min.x = 0
-	if tile_pos_min.y < 0 do tile_pos_min.y = 0
-	if tile_pos_min.x >= TILE_CHUNK_COUNT_W do tile_pos_min.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_min.y >= TILE_CHUNK_COUNT_H do tile_pos_min.y = TILE_CHUNK_COUNT_H - 1
-	
-	tile_pos_max := (top_left.offsets + ivec2{w, h}) / TILE_SIZE
-	if tile_pos_max.x < 0 do tile_pos_max.x = 0
-	if tile_pos_max.y < 0 do tile_pos_max.y = 0
-	if tile_pos_max.x >= TILE_CHUNK_COUNT_W do tile_pos_max.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_max.y >= TILE_CHUNK_COUNT_H do tile_pos_max.y = TILE_CHUNK_COUNT_H - 1
-
-	chunk_idx := top_left.chunk.y * TILEMAP_CHUNK_COUNT_W + top_left.chunk.x
-	for tile_y in tile_pos_min.y .. tile_pos_max.y {
-		for tile_x in tile_pos_min.x .. tile_pos_max.x {
-			idx := tile_y * TILE_CHUNK_COUNT_W + tile_x
-			tile := tilemap.chunks[chunk_idx].tiles[idx]
-			if tilemap.tiledef[tile].solid do return true
-		}
-	}
-
-	return false
 }
 
 // draw chunk with x/y offset from top of the screen
@@ -177,7 +140,8 @@ r : f32 = 0.125
 GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
 	DW, DH :: 160, 128+16
 	texture : [(DW/8)*DH]u8
-
+	
+	w4.DRAW_COLORS^ = 0x0004
 	color_at_px_for_light :: proc "contextless" ( l: Light, x, y: i32 ) -> f32 {
 		if !l.enabled do return 0
 		pxx, pyy := f32(l.pos.x + 4) / DW, f32(l.pos.y + 4) / DH
@@ -217,31 +181,31 @@ GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
 	w4.blit( &texture[0], 0, 0, DW, DH )
 }
 
-GlobalCoordinates :: struct {
-	chunk: ivec2,
-	offsets: ivec2,
-}
-
-RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
-	result := coord
-	for n in 0..<2 {
-		l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
-		l *= TILE_SIZE
-		for result.offsets[n] >= l {
-			result.offsets[n] -= l
-			result.chunk[n] += 1
-		}
-		for result.offsets[n] < 0 {
-			result.offsets[n] += l
-			result.chunk[n] -= 1
-		}
-	}
-	return result
-}
-
 DrawStatusUI :: proc "contextless" () {
 	w4.DRAW_COLORS^ = 0x0001
 	w4.blit( &Images.status_bar.bytes[0], 0, i32(160-Images.status_bar.h), Images.status_bar.w, Images.status_bar.h, Images.status_bar.flags )
+}
+
+MiruAnimation := AnimatedSprite {
+	&Images.miru, 16, 16, 0,
+	{
+		AnimationFrame{ 50, 0, nil },
+		AnimationFrame{ 50, 0, {.FlipX} },
+	},
+	0, 0,
+}
+MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
+	ent : EntityTemplate
+
+	ent.position = { { 0, 0 }, GetTileWorldCoordinate( 3, 1 ) }
+	ent.flags += {.Talkable, .AnimatedSprite}
+	ent.animated_sprite = &MiruAnimation
+
+	return ent
+}
+
+ents_c00 := []EntityTemplate {
+	MakeMiruEntity(),
 }
 
 @export
@@ -261,6 +225,8 @@ start :: proc "c" () {
 		player.position.offsets = { 76, 76 }
 	}
 
+	active_chunk_coords = { -1, -1 }
+
 	tilemap.chunks[0].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -272,6 +238,8 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
+	tilemap.chunks[0].entities = ents_c00
+
 	tilemap.chunks[1].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 3, 0, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -326,6 +294,22 @@ update :: proc "c" () {
 	player := GetEntityByName( EntityName.Player )
 	DrawTileChunk( &tilemap, player.position.chunk.x, player.position.chunk.y, 0, 0 )
 
+	if player.position.chunk != active_chunk_coords {
+		active_chunk_coords = player.position.chunk
+		// destroy ents outside current active chunk
+		for ent in &s_EntityPool {
+			if .InUse not_in ent.flags do continue
+			if ent.position.chunk != active_chunk_coords {
+				DestroyEntity( &ent )
+			}
+		}
+		// create entities linked to this chunk
+		active_chunk := GetChunkFromChunkCoordinates( &tilemap, player.position.chunk.x, player.position.chunk.y )
+		for ent_template in &active_chunk.entities {
+			AllocateEntity( &ent_template )
+		}
+	}
+
 	UpdateEntities()
 	lights[0].pos = player.position.offsets
 
@@ -343,13 +327,7 @@ update :: proc "c" () {
 		DrawAnimatedSprite( &FireAnimation, 60, 20 )
 	}
 
-	// w4.DRAW_COLORS^ = 0x0004
 	// GenerateDitherPattern(0,0)
-
-	w4.DRAW_COLORS^ = 0x0002
-	if .A in w4.GAMEPAD1^ {
-		w4.DRAW_COLORS^ = 0x0004
-	}
 
 	/*
 	w4.text("Hello from Odin!", 16, 130)
