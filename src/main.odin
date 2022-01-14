@@ -6,6 +6,16 @@ import "core:runtime"
 import "core:math"
 
 ivec2 :: distinct [2]i32
+rect :: struct {
+	min, max: ivec2,
+}
+
+translate_rect :: proc "contextless" ( r: rect, v: ivec2 ) -> rect {
+	return {
+		r.min + v,
+		r.max + v,
+	}
+}
 
 AnimationFlag :: enum {
 	FlipX,
@@ -198,8 +208,10 @@ MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
 	ent : EntityTemplate
 
 	ent.position = { { 0, 0 }, GetTileWorldCoordinate( 3, 1 ) }
-	ent.flags += {.Talkable, .AnimatedSprite}
+	ent.flags += {.Talkable, .AnimatedSprite, .Collidable}
 	ent.animated_sprite = &MiruAnimation
+	ent.looking_dir = { 0, 1 }
+	ent.collider = { { 0, 0 }, { 16, 16 } }
 
 	return ent
 }
@@ -223,6 +235,7 @@ start :: proc "c" () {
 		player.looking_dir = { 1, 1 }
 		player.position.chunk = { 0, 0 }
 		player.position.offsets = { 76, 76 }
+		player.collider = { { 0, 0 }, { 8, 8 } }
 	}
 
 	active_chunk_coords = { -1, -1 }

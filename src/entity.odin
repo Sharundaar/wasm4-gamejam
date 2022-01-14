@@ -6,6 +6,7 @@ EntityFlag :: enum {
 	Player,
 	Talkable,
 	AnimatedSprite,
+	Collidable,
 }
 EntityFlags :: distinct bit_set[EntityFlag; u8]
 
@@ -16,6 +17,7 @@ EntityName :: enum u8 {
 }
 
 Entity :: struct {
+	id: u8,
 	position : GlobalCoordinates,
 	flags : EntityFlags,
 	name : EntityName,
@@ -23,6 +25,7 @@ Entity :: struct {
 	looking_dir : ivec2,
 
 	animated_sprite: ^AnimatedSprite,
+	collider: rect,
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -46,6 +49,7 @@ AllocateEntity_Basic :: proc "contextless" ( name := EntityName.Default ) -> ^En
 	}
 
 	e := &s_EntityPool[idx]
+	e.id = u8(idx + 1)
 	e.flags += {.InUse}
 	e.name = name
 	return e
@@ -61,6 +65,7 @@ AllocateEntity_Template :: proc "contextless" ( template: ^EntityTemplate ) -> ^
 	e := &s_EntityPool[idx]
 	e^ = (cast(^Entity)template)^
 
+	e.id = u8(idx + 1)
 	e.flags += {.InUse}
 	return e
 }

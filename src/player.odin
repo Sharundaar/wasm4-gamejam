@@ -36,6 +36,31 @@ PlayerAnimation_Move_Back := AnimatedSprite {
 	0, 0,
 }
 
+GetWorldSpaceCollider :: proc "contextless" ( ent: ^Entity ) -> rect {
+	return translate_rect( ent.collider, ent.position.offsets )
+}
+
+C_TestAABB :: proc "contextless" ( a, b: rect ) -> bool {
+    if a.max.x < b.min.x || a.min.x > b.max.x do return false
+    if a.max.y < b.min.y || a.min.y > b.max.y do return false
+    return true
+}
+
+IsCollidingWithEntity :: proc "contextless" ( collider: rect, other: ^Entity ) -> bool {
+	other_collider := GetWorldSpaceCollider( other )
+	return C_TestAABB( collider, other_collider )
+}
+
+IsCollidingWithAnyEntity :: proc "contextless" ( entity: ^Entity, collider: rect ) -> bool {
+	for ent in &s_EntityPool {
+		if .InUse not_in ent.flags do continue
+		if .Collidable not_in ent.flags do continue
+		if ent.id == entity.id do continue
+		if IsCollidingWithEntity( collider, &ent ) do return true
+	}
+	return false
+}
+
 UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	if .Player not_in flags do return
 
@@ -47,9 +72,12 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		dir.x += 1
 	}
 
-	testing_pos := position; testing_pos.offsets += dir
-	if IsCollidingWithTilemap( &s_gglob.tilemap, testing_pos, 8, 8 ) {
-		dir.x = 0
+	if dir.x != 0 {
+		testing_pos := position; testing_pos.offsets += dir
+		world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+		if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+			dir.x = 0
+		}
 	}
 
 	if .UP in w4.GAMEPAD1^ {
@@ -59,9 +87,12 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		dir.y += 1
 	}
 
-	testing_pos = position; testing_pos.offsets += dir
-	if IsCollidingWithTilemap( &s_gglob.tilemap, testing_pos, 8, 8 ) {
-		dir.y = 0
+	if dir.y != 0 {
+		testing_pos := position; testing_pos.offsets += dir
+		world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+		if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+			dir.y = 0
+		}
 	}
 
 	position.offsets += dir
