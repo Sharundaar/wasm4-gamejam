@@ -21,20 +21,20 @@ AnimationFrame :: struct {
 
 AnimatedSprite :: struct {
 	img: ^Image,
-	w, h: u32,
+	w, h: u32, y_offs: u8,
 	frames: []AnimationFrame,
 	current_frame: u32,
 	frame_counter: u32,
 }
 
-GameData : struct {
-	player_pos: GlobalCoordinates,
+GameGlob :: struct {
 	tilemap: TileMap,
-} = {}
+}
+s_gglob : GameGlob
 
 TILE_SIZE : i32 : 16
 TILE_CHUNK_COUNT_W : i32 : 10
-TILE_CHUNK_COUNT_H : i32 : 8
+TILE_CHUNK_COUNT_H : i32 : 9
 
 TILEMAP_CHUNK_COUNT_W : i32 : 10
 TILEMAP_CHUNK_COUNT_H : i32 : 10
@@ -72,7 +72,7 @@ tiledef := []TileDefinition{
 }
 
 BatAnimation := AnimatedSprite {
-	&Images.bat, 8, 8,
+	&Images.bat, 8, 8, 0,
 	{
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 8, nil },
@@ -81,7 +81,7 @@ BatAnimation := AnimatedSprite {
 }
 
 FireAnimation := AnimatedSprite {
-	&Images.fire, 16, 16,
+	&Images.fire, 16, 16, 0,
 	{
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 0, { .FlipX } },
@@ -135,6 +135,7 @@ IsCollidingWithTilemap :: proc "contextless" ( tilemap: ^TileMap, top_left: Glob
 
 // draw chunk with x/y offset from top of the screen
 DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_offs, y_offs: i32 ) {
+	w4.DRAW_COLORS^ = 0x1234
 	chunk := &tilemap.chunks[TILEMAP_CHUNK_COUNT_W * i32(chunk_y) + i32(chunk_x)];
 	print_buffer : [256]byte
 	for y in 0..<TILE_CHUNK_COUNT_H do for x in 0..<TILE_CHUNK_COUNT_W {
@@ -151,14 +152,20 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 	}
 }
 
+AnimationToBlitFlags :: proc "contextless" ( flags: AnimationFlags ) -> w4.Blit_Flags {
+	blit_flags : w4.Blit_Flags
+	blit_flags += {.FLIPX} if AnimationFlag.FlipX in flags else nil
+	blit_flags += {.FLIPY} if AnimationFlag.FlipY in flags else nil
+	return blit_flags
+}
 
-DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32 ) {
+DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32, flags: AnimationFlags = nil ) {
 	frame := &sprite.frames[sprite.current_frame]
-	flags := sprite.img.flags
-	flags += {.FLIPX} if AnimationFlag.FlipX in frame.flags else nil
-	flags += {.FLIPY} if AnimationFlag.FlipY in frame.flags else nil
+	flags := AnimationToBlitFlags( flags )
+	flags += sprite.img.flags
+	flags += AnimationToBlitFlags( frame.flags )
 	
-	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), 0, int(sprite.img.w), flags )
+	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), flags )
 	sprite.frame_counter += 1
 	if sprite.frame_counter >= u32(frame.length) {
 		sprite.frame_counter = 0
@@ -168,7 +175,7 @@ DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32 ) 
 
 r : f32 = 0.125
 GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
-	DW, DH :: 160, 128
+	DW, DH :: 160, 128+16
 	texture : [(DW/8)*DH]u8
 
 	color_at_px_for_light :: proc "contextless" ( l: Light, x, y: i32 ) -> f32 {
@@ -232,16 +239,27 @@ RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> Globa
 	return result
 }
 
+DrawStatusUI :: proc "contextless" () {
+	w4.DRAW_COLORS^ = 0x0001
+	w4.blit( &Images.status_bar.bytes[0], 0, i32(160-Images.status_bar.h), Images.status_bar.w, Images.status_bar.h, Images.status_bar.flags )
+}
+
 @export
 start :: proc "c" () {
-	using GameData
-	player_pos.chunk.x, player_pos.chunk.y = 0, 0
-	player_pos.offsets.x, player_pos.offsets.y = 76, 76
+	using s_gglob
 
 	(w4.PALETTE^)[0] = 0xdad3af
 	(w4.PALETTE^)[1] = 0xd58863
 	(w4.PALETTE^)[2] = 0xc23a73
 	(w4.PALETTE^)[3] = 0x2c1e74
+
+	{
+		player := AllocateEntity( EntityName.Player )
+		player.flags += {.Player}
+		player.looking_dir = { 1, 1 }
+		player.position.chunk = { 0, 0 }
+		player.position.offsets = { 76, 76 }
+	}
 
 	tilemap.chunks[0].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -250,6 +268,7 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
@@ -261,10 +280,12 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
 	tilemap.chunks[0+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -281,7 +302,8 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 2, 2, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
 	tilemap.tileset = &Images.tileset
 	tilemap.tiledef = tiledef
@@ -299,39 +321,15 @@ start :: proc "c" () {
 
 @export
 update :: proc "c" () {
-	using GameData
-	w4.DRAW_COLORS^ = 0x1234
-	DrawTileChunk( &tilemap, player_pos.chunk.x, player_pos.chunk.y, 0, 0 )
+	using s_gglob
 
-	w4.DRAW_COLORS^ = 0x0002
-	new_player_pos := player_pos
-	if .LEFT in w4.GAMEPAD1^ {
-		new_player_pos.offsets.x -= 1
-	}
-	if .RIGHT in w4.GAMEPAD1^ {
-		new_player_pos.offsets.x += 1
-	}
-	if IsCollidingWithTilemap( &tilemap, new_player_pos, 8, 8 ) {
-		new_player_pos = player_pos
-	} else {
-		player_pos = new_player_pos
-	}
+	player := GetEntityByName( EntityName.Player )
+	DrawTileChunk( &tilemap, player.position.chunk.x, player.position.chunk.y, 0, 0 )
 
-	if .UP in w4.GAMEPAD1^ {
-		new_player_pos.offsets.y -= 1
-	}
-	if .DOWN in w4.GAMEPAD1^ {
-		new_player_pos.offsets.y += 1
-	}
-	if IsCollidingWithTilemap( &tilemap, new_player_pos, 8, 8 ) {
-		new_player_pos = player_pos
-	}
+	UpdateEntities()
+	lights[0].pos = player.position.offsets
 
-	player_pos = RegularizeCoordinate( new_player_pos )
-
-	lights[0].pos = player_pos.offsets
-	w4.blit(&smiley[0], player_pos.offsets.x, player_pos.offsets.y, 8, 8)
-
+	when false
 	{
 		w4.DRAW_COLORS^ = 0x4320
 		w4.blit(&Images.key.bytes[0], 20, 20, Images.key.w, Images.key.h)
@@ -341,17 +339,21 @@ update :: proc "c" () {
 	
 		w4.DRAW_COLORS^ = 0x4320
 		DrawAnimatedSprite( &BatAnimation, 40, 20 )
+		w4.DRAW_COLORS^ = 0x4230
+		DrawAnimatedSprite( &FireAnimation, 60, 20 )
 	}
-	w4.DRAW_COLORS^ = 0x4230
-	DrawAnimatedSprite( &FireAnimation, 60, 20 )
 
-	w4.DRAW_COLORS^ = 0x0004
-	GenerateDitherPattern(0,0)
+	// w4.DRAW_COLORS^ = 0x0004
+	// GenerateDitherPattern(0,0)
 
 	w4.DRAW_COLORS^ = 0x0002
 	if .A in w4.GAMEPAD1^ {
 		w4.DRAW_COLORS^ = 0x0004
 	}
+
+	/*
 	w4.text("Hello from Odin!", 16, 130)
 	w4.text("Press X to blink", 16, 140)
+	*/
+	DrawStatusUI()
 }
