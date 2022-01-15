@@ -1,8 +1,12 @@
 package main
 
+DEVELOPMENT_BUILD :: false
+
 import "w4"
-import "core:fmt"
-import "core:runtime"
+when DEVELOPMENT_BUILD {
+	import "core:fmt"
+	import "core:runtime"
+}
 import "core:math"
 
 ivec2 :: distinct [2]i32
@@ -33,13 +37,26 @@ AnimatedSprite :: struct {
 	img: ^Image,
 	w, h: u32, y_offs: u8,
 	frames: []AnimationFrame,
-	current_frame: u32,
-	frame_counter: u32,
+	current_frame: u8,
+	frame_counter: u8,
+}
+
+GameState :: enum {
+	Game,
+	Dialog,
+}
+
+InputState :: struct {
+	APressed, AReleased, ADown: bool,
+	BPressed, BReleased, BDown: bool,
 }
 
 GameGlob :: struct {
 	tilemap: TileMap,
 	active_chunk_coords: ivec2,
+	game_state: GameState,
+	input_state: InputState,
+	dialog_ui: DialogUIData,
 }
 s_gglob : GameGlob
 
@@ -100,10 +117,26 @@ FireAnimation := AnimatedSprite {
 
 
 print :: proc "contextless" ( args: ..any ) {
-	context = runtime.default_context()
-	buffer : [256]u8
-	str := fmt.bprint( buffer[:], args )
-	w4.trace( str )
+	when DEVELOPMENT_BUILD {
+		context = runtime.default_context()
+		buffer : [256]u8
+		str := fmt.bprint( buffer[:], args )
+		w4.trace( string( buffer[:] ) )
+	}
+}
+
+UpdateInputState :: proc "contextless" () {
+	using s_gglob.input_state
+	APressed = false ; AReleased = false
+	BPressed = false ; BReleased = false
+
+	wasADown, wasBDown := ADown, BDown
+	ADown, BDown = .A in w4.GAMEPAD1^, .B in w4.GAMEPAD1^
+
+	if !wasADown && ADown do APressed = true
+	if wasADown && AReleased do AReleased = true
+	if !wasBDown && BDown do BPressed = true
+	if wasBDown && BReleased do BReleased = true
 }
 
 // draw chunk with x/y offset from top of the screen
@@ -132,6 +165,11 @@ AnimationToBlitFlags :: proc "contextless" ( flags: AnimationFlags ) -> w4.Blit_
 	return blit_flags
 }
 
+AnimatedSprite_NextFrame :: proc "contextless" ( sprite: ^AnimatedSprite ) {
+	sprite.frame_counter = 0
+	sprite.current_frame = u8( int( sprite.current_frame + 1 ) % len( sprite.frames ) )
+}
+
 DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32, flags: AnimationFlags = nil ) {
 	frame := &sprite.frames[sprite.current_frame]
 	flags := AnimationToBlitFlags( flags )
@@ -139,10 +177,11 @@ DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32, f
 	flags += AnimationToBlitFlags( frame.flags )
 	
 	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), flags )
-	sprite.frame_counter += 1
-	if sprite.frame_counter >= u32(frame.length) {
-		sprite.frame_counter = 0
-		sprite.current_frame = u32( int( sprite.current_frame + 1 ) % len( sprite.frames ) )
+	if frame.length > 0 { // length of 0 describes a blocked frame and needs to be advanced manually
+		sprite.frame_counter += 1
+		if sprite.frame_counter >= frame.length {
+			AnimatedSprite_NextFrame( sprite )
+		}
 	}
 }
 
@@ -204,20 +243,54 @@ MiruAnimation := AnimatedSprite {
 	},
 	0, 0,
 }
+MirusDialog := DialogDef {
+	"Miru",
+	{
+		{ "Oh hi !", "It's been a while" },
+		{ "Can you give", "me a hand ?" },
+	},
+}
+
 MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
 	ent : EntityTemplate
 
-	ent.position = { { 0, 0 }, GetTileWorldCoordinate( 3, 1 ) }
-	ent.flags += {.Talkable, .AnimatedSprite, .Collidable}
+	ent.position = { {}, GetTileWorldCoordinate( 3, 1 ) }
+	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
 	ent.animated_sprite = &MiruAnimation
 	ent.looking_dir = { 0, 1 }
 	ent.collider = { { 0, 0 }, { 16, 16 } }
+	ent.palette_mask = 0x0210
+	ent.interaction = &MirusDialog
+
+	return ent
+}
+
+SwordAltarSprite := AnimatedSprite {
+	&Images.sword_altar, 5, 7, 0,
+	{
+		AnimationFrame{ 0, 0, nil },
+		AnimationFrame{ 0, 6, nil },
+	},
+	0, 0,
+}
+MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
+	ent : EntityTemplate
+
+	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
+	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
+	ent.animated_sprite = &SwordAltarSprite
+	ent.palette_mask = 0x0210
+	ent.collider = { { 0, 0 }, { 5, 7 } }
 
 	return ent
 }
 
 ents_c00 := []EntityTemplate {
 	MakeMiruEntity(),
+}
+
+ents_c01 := []EntityTemplate {
+	MakeSwordAltarEntity(),
 }
 
 @export
@@ -264,6 +337,8 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
+	tilemap.chunks[1].entities = ents_c01
+
 	tilemap.chunks[0+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -303,6 +378,7 @@ start :: proc "c" () {
 @export
 update :: proc "c" () {
 	using s_gglob
+	UpdateInputState()
 
 	player := GetEntityByName( EntityName.Player )
 	DrawTileChunk( &tilemap, player.position.chunk.x, player.position.chunk.y, 0, 0 )
@@ -319,13 +395,27 @@ update :: proc "c" () {
 		// create entities linked to this chunk
 		active_chunk := GetChunkFromChunkCoordinates( &tilemap, player.position.chunk.x, player.position.chunk.y )
 		for ent_template in &active_chunk.entities {
-			AllocateEntity( &ent_template )
+			ent := AllocateEntity( &ent_template )
+			ent.position.chunk = active_chunk_coords
 		}
 	}
 
 	UpdateEntities()
 	lights[0].pos = player.position.offsets
 
+	DrawStatusUI()
+	Dialog_Update()
+
+	// GenerateDitherPattern(0,0)
+
+	/*
+	w4.text("Hello from Odin!", 16, 130)
+	w4.text("Press X to blink", 16, 140)
+	*/
+}
+
+
+TestGallery :: proc "contextless" () {
 	when false
 	{
 		w4.DRAW_COLORS^ = 0x4320
@@ -339,12 +429,4 @@ update :: proc "c" () {
 		w4.DRAW_COLORS^ = 0x4230
 		DrawAnimatedSprite( &FireAnimation, 60, 20 )
 	}
-
-	// GenerateDitherPattern(0,0)
-
-	/*
-	w4.text("Hello from Odin!", 16, 130)
-	w4.text("Press X to blink", 16, 140)
-	*/
-	DrawStatusUI()
 }

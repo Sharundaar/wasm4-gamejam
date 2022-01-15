@@ -1,10 +1,10 @@
 package main
 import "w4"
 
-EntityFlag :: enum {
+EntityFlag :: enum u8 {
 	InUse,
 	Player,
-	Talkable,
+	Interactible,
 	AnimatedSprite,
 	Collidable,
 }
@@ -16,16 +16,20 @@ EntityName :: enum u8 {
 	Miru,
 }
 
+Interaction :: union {
+	^DialogDef,
+}
+
 Entity :: struct {
-	id: u8,
 	position : GlobalCoordinates,
+	animated_sprite: ^AnimatedSprite,
+	interaction: Interaction,
+	collider: rect,
+	looking_dir : ivec2,
+	palette_mask: u16,
+	id: u8,
 	flags : EntityFlags,
 	name : EntityName,
-
-	looking_dir : ivec2,
-
-	animated_sprite: ^AnimatedSprite,
-	collider: rect,
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -98,5 +102,8 @@ GetEntityByName :: proc "contextless" ( name: EntityName ) -> ^Entity {
 
 UpdateAnimatedSprite :: proc "contextless" ( entity: ^Entity ) {
 	if .AnimatedSprite not_in entity.flags do return
+	if entity.palette_mask != 0 {
+		w4.DRAW_COLORS^ = entity.palette_mask
+	}
 	DrawAnimatedSprite( entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y )
 }

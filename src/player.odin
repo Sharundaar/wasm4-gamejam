@@ -2,6 +2,7 @@ package main
 import "w4"
 
 PLAYER_W, PLAYER_H :: 8, 8
+HALF_PLAYER_W, HALF_PLAYER_H :: 4, 4
 
 PlayerAnimation_Idle_Front := AnimatedSprite {
 	&Images.mc, 8, 8, 0,
@@ -51,86 +52,112 @@ IsCollidingWithEntity :: proc "contextless" ( collider: rect, other: ^Entity ) -
 	return C_TestAABB( collider, other_collider )
 }
 
-IsCollidingWithAnyEntity :: proc "contextless" ( entity: ^Entity, collider: rect ) -> bool {
+GetFirstEntityInside :: proc "contextless" ( source: ^Entity, collider: rect ) -> ^Entity {
 	for ent in &s_EntityPool {
 		if .InUse not_in ent.flags do continue
 		if .Collidable not_in ent.flags do continue
-		if ent.id == entity.id do continue
-		if IsCollidingWithEntity( collider, &ent ) do return true
+		if ent.id == source.id do continue
+		if IsCollidingWithEntity( collider, &ent ) do return &ent
 	}
-	return false
+	return nil
+}
+
+IsCollidingWithAnyEntity :: proc "contextless" ( entity: ^Entity, collider: rect ) -> bool {
+	ent := GetFirstEntityInside( entity, collider )
+	return ent != nil
 }
 
 UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	if .Player not_in flags do return
 
 	dir : ivec2 = { 0, 0 }
-	if .LEFT in w4.GAMEPAD1^ {
-		dir.x -= 1
-	}
-	if .RIGHT in w4.GAMEPAD1^ {
-		dir.x += 1
-	}
-
-	if dir.x != 0 {
-		testing_pos := position; testing_pos.offsets += dir
-		world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-		if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
-			dir.x = 0
+	if s_gglob.game_state == GameState.Game {
+		if .LEFT in w4.GAMEPAD1^ {
+			dir.x -= 1
 		}
-	}
-
-	if .UP in w4.GAMEPAD1^ {
-		dir.y -= 1
-	}
-	if .DOWN in w4.GAMEPAD1^ {
-		dir.y += 1
-	}
-
-	if dir.y != 0 {
-		testing_pos := position; testing_pos.offsets += dir
-		world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-		if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
-			dir.y = 0
+		if .RIGHT in w4.GAMEPAD1^ {
+			dir.x += 1
 		}
+	
+		move := dir
+		if move.x != 0 {
+			testing_pos := position; testing_pos.offsets += move
+			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+				move.x = 0
+			}
+		}
+	
+		if .UP in w4.GAMEPAD1^ {
+			dir.y -= 1
+		}
+		if .DOWN in w4.GAMEPAD1^ {
+			dir.y += 1
+		}
+		move.y = dir.y
+		if move.y != 0 {
+			testing_pos := position; testing_pos.offsets += move
+			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+				move.y = 0
+			}
+		}
+	
+		position.offsets += move
+	
+		{ // trigger smooth transition ?
+			if position.offsets.x + PLAYER_W >= TILE_CHUNK_COUNT_W * TILE_SIZE {
+				position.offsets.x = 0
+				position.chunk.x += 1
+			}
+			if position.offsets.y + PLAYER_H >= TILE_CHUNK_COUNT_H * TILE_SIZE {
+				position.offsets.y = 0
+				position.chunk.y += 1
+			}
+			if position.offsets.x < 0 {
+				position.offsets.x = TILE_CHUNK_COUNT_W * TILE_SIZE - PLAYER_W
+				position.chunk.x -= 1
+			}
+			if position.offsets.y < 0 {
+				position.offsets.y = TILE_CHUNK_COUNT_H * TILE_SIZE - PLAYER_H
+				position.chunk.y -= 1
+			}
+		}
+
+		// shouldn't be necessary but for safety
+		position = RegularizeCoordinate( position )
 	}
-
-	position.offsets += dir
-
-	{ // trigger smooth transition ?
-		if position.offsets.x + PLAYER_W >= TILE_CHUNK_COUNT_W * TILE_SIZE {
-			position.offsets.x = 0
-			position.chunk.x += 1
-		}
-		if position.offsets.y + PLAYER_H >= TILE_CHUNK_COUNT_H * TILE_SIZE {
-			position.offsets.y = 0
-			position.chunk.y += 1
-		}
-		if position.offsets.x < 0 {
-			position.offsets.x = TILE_CHUNK_COUNT_W * TILE_SIZE - PLAYER_W
-			position.chunk.x -= 1
-		}
-		if position.offsets.y < 0 {
-			position.offsets.y = TILE_CHUNK_COUNT_H * TILE_SIZE - PLAYER_H
-			position.chunk.y -= 1
-		}
-	}
-
-	// shouldn't be necessary but for safety
-	position = RegularizeCoordinate( position )
 
 	// draw player
-	w4.DRAW_COLORS^ = 0x0120
+	w4.DRAW_COLORS^ = 0x0021
 	if dir.x != 0 || dir.y != 0 {
-		if dir.x != 0 do looking_dir.x = dir.x
-		if dir.y != 0 do looking_dir.y = dir.y
+		looking_dir.x = dir.x
+		looking_dir.y = dir.y
 
 		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-		anim := &PlayerAnimation_Move_Front if looking_dir.y > 0 else &PlayerAnimation_Move_Back
+		anim := &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
 		DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
 	} else {
 		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-		anim := &PlayerAnimation_Idle_Front if looking_dir.y > 0 else &PlayerAnimation_Idle_Back
+		anim := &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
 		DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
+	}
+
+	if s_gglob.input_state.APressed {
+		if s_gglob.game_state == GameState.Game {
+			interaction_rect := GetWorldSpaceCollider( entity )
+			interaction_rect = translate_rect( interaction_rect, looking_dir * {HALF_PLAYER_W, HALF_PLAYER_H} )
+	
+			ent := GetFirstEntityInside( entity, interaction_rect )
+			if .Interactible in ent.flags {
+				switch interaction in ent.interaction {
+					case ^DialogDef:
+						Dialog_Start( interaction )
+				}
+			} else { // perform inventory object use
+
+			}
+			when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
+		}
 	}
 }
