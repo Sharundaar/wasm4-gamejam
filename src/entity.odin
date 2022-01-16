@@ -16,20 +16,20 @@ EntityName :: enum u8 {
 	Miru,
 }
 
-Interaction :: union {
-	^DialogDef,
-}
-
 Entity :: struct {
+	id: u8,
+	name : EntityName,
+	flags : EntityFlags,
+	
 	position : GlobalCoordinates,
+	looking_dir : ivec2,
+
 	animated_sprite: ^AnimatedSprite,
 	interaction: Interaction,
 	collider: rect,
-	looking_dir : ivec2,
 	palette_mask: u16,
-	id: u8,
-	flags : EntityFlags,
-	name : EntityName,
+
+	swinging_sword: u8, // 0 means we're not swinging, otherwise frame count since started swinging (clamp at 255)
 }
 EntityTemplate :: distinct Entity // compression ?
 

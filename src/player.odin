@@ -37,6 +37,31 @@ PlayerAnimation_Move_Back := AnimatedSprite {
 	0, 0,
 }
 
+PlayerAnimation_SwingSword_LeftRight := AnimatedSprite {
+	&Images.mc, 13, 8, 16,
+	{
+		AnimationFrame{ 5, 0, nil },
+		AnimationFrame{ 0, 13, nil },
+	},
+	0, 0,
+}
+PlayerAnimation_SwingSword_Front := AnimatedSprite {
+	&Images.mc, 8, 10, 10,
+	{
+		AnimationFrame{ 5, 32, nil },
+		AnimationFrame{ 0, 40, nil },
+	},
+	0, 0,
+}
+PlayerAnimation_SwingSword_Back := AnimatedSprite {
+	&Images.mc, 8, 10, 0,
+	{
+		AnimationFrame{ 5, 32, nil },
+		AnimationFrame{ 0, 40, nil },
+	},
+	0, 0,
+}
+
 GetWorldSpaceCollider :: proc "contextless" ( ent: ^Entity ) -> rect {
 	return translate_rect( ent.collider, ent.position.offsets )
 }
@@ -83,7 +108,8 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if move.x != 0 {
 			testing_pos := position; testing_pos.offsets += move
 			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
+			|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
 				move.x = 0
 			}
 		}
@@ -98,7 +124,8 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if move.y != 0 {
 			testing_pos := position; testing_pos.offsets += move
 			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) || IsCollidingWithAnyEntity( entity, world_space_collider ) {
+			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
+			|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
 				move.y = 0
 			}
 		}
@@ -128,19 +155,9 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		position = RegularizeCoordinate( position )
 	}
 
-	// draw player
-	w4.DRAW_COLORS^ = 0x0021
-	if dir.x != 0 || dir.y != 0 {
-		looking_dir.x = dir.x
-		looking_dir.y = dir.y
-
-		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-		anim := &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
-		DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
-	} else {
-		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-		anim := &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
-		DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
+	moving := dir.x != 0 || dir.y != 0
+	if moving && entity.swinging_sword == 0 { // lock looking dir when swinging sword
+		looking_dir = dir
 	}
 
 	if s_gglob.input_state.APressed {
@@ -150,14 +167,57 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	
 			ent := GetFirstEntityInside( entity, interaction_rect )
 			if .Interactible in ent.flags {
-				switch interaction in ent.interaction {
-					case ^DialogDef:
-						Dialog_Start( interaction )
+				#partial switch interaction in ent.interaction {
+					case ^DialogDef: Dialog_Start( interaction )
 				}
 			} else { // perform inventory object use
-
+				entity.swinging_sword = 1
+				if looking_dir.x != 0 {
+					entity.animated_sprite = &PlayerAnimation_SwingSword_LeftRight
+				} else if looking_dir.y > 0 {
+					entity.animated_sprite = &PlayerAnimation_SwingSword_Front
+				} else if looking_dir.y < 0 {
+					entity.animated_sprite = &PlayerAnimation_SwingSword_Back
+				}
+				entity.animated_sprite.current_frame = 0
 			}
 			when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
+		}
+	}
+
+	if entity.swinging_sword > 0 {
+		// if we release wait that we at least have done a full swing
+		if !s_gglob.input_state.ADown && entity.swinging_sword > entity.animated_sprite.frames[0].length + 3 {
+			entity.swinging_sword = 0
+		} else {
+			if entity.swinging_sword < 255 do entity.swinging_sword += 1
+		}
+	}
+
+	// display player
+	w4.DRAW_COLORS^ = 0x0021
+	if entity.swinging_sword > 0 {
+		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
+		x, y := position.offsets.x, position.offsets.y
+		if entity.animated_sprite == &PlayerAnimation_SwingSword_LeftRight {
+			if flip != nil {
+				x -= 5
+			}
+		} else {
+			if entity.animated_sprite == &PlayerAnimation_SwingSword_Back {
+				y -= 2
+			}
+		}
+		DrawAnimatedSprite( entity.animated_sprite, x, y, flip )
+	} else {
+		if moving {
+			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
+			anim := &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
+			DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
+		} else {
+			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
+			anim := &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
+			DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
 		}
 	}
 }
