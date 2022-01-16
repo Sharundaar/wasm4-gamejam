@@ -16,6 +16,7 @@ EntityName :: enum u8 {
 	Default,
 	Player,
 	Miru,
+	Bat,
 }
 
 Entity :: struct {
@@ -39,6 +40,8 @@ Entity :: struct {
 	inflicted_damage: u8, // 0 means no damage were inflicted recently, otherwise count frames since last damage inflicted, wrap around at 256
 	damage_flash_palette: u16, saved_palette : u16,
 	pushed_back_direction: ivec2, // when receiving damage, send entity in that direction for a couple of frames
+
+	
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -99,6 +102,21 @@ UpdateEntities :: proc "contextless" () {
 		UpdateAnimatedSprite( &entity )
 		UpdateDamageMaker( &entity )
 		UpdateDamageReceiver( &entity )
+
+		// UpdateBatBehavior( &entity )
+	}
+}
+
+UpdateBatBehavior :: proc "contextless" ( entity: ^Entity ) {
+	if entity.name != EntityName.Bat do return
+
+	player := GetEntityByName( EntityName.Player )
+	if player != nil {
+		if entity.received_damage > 0 do return
+		dir := player.position.offsets - entity.position.offsets
+		dir_normalized := normalize_vec2( dir )
+		dir = { i32( dir_normalized.x + 0.5 if dir_normalized.x > 0 else dir_normalized.x - 0.5 ), i32( dir_normalized.y + 0.5 if dir_normalized.y > 0 else dir_normalized.y - 0.5 ) }
+		entity.position.offsets += dir
 	}
 }
 

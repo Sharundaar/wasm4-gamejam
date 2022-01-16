@@ -247,14 +247,15 @@ DrawStatusUI :: proc "contextless" () {
 MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 	ent: EntityTemplate
 
+	ent.name = EntityName.Bat
 	ent.position = { {}, { x, y } }
 	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
 	ent.collider = { {}, {8, 8} }
-	ent.hurt_box = { {}, {8, 8} }
+	ent.hurt_box = { { 0, 2 }, {8, 7} }
 	ent.animated_sprite = &BatAnimation
 	ent.health_points = 2
-	ent.palette_mask = 0x30
-	ent.damage_flash_palette = 0x10
+	ent.palette_mask = 0x130
+	ent.damage_flash_palette = 0x110
 
 	return ent
 }
