@@ -23,6 +23,12 @@ translate_rect :: proc "contextless" ( r: rect, v: ivec2 ) -> rect {
 	}
 }
 
+normalize_vec2 :: proc "contextless" ( v: ivec2 ) -> [2]f32 {
+	l := math.sqrt( f32(v.x*v.x + v.y*v.y) )
+	if l < 0.01 do return {}
+	return { f32(v.x) / l, f32(v.y) / l }
+}
+
 AnimationFlag :: enum {
 	FlipX,
 	FlipY,
@@ -246,7 +252,7 @@ MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 	ent.collider = { {}, {8, 8} }
 	ent.hurt_box = { {}, {8, 8} }
 	ent.animated_sprite = &BatAnimation
-	ent.health_points = 1
+	ent.health_points = 2
 	ent.palette_mask = 0x30
 	ent.damage_flash_palette = 0x10
 
@@ -323,15 +329,18 @@ start :: proc "c" () {
 
 	{
 		player := AllocateEntity( EntityName.Player )
-		player.flags += { .Player }
+		player.flags += { .Player, .DamageReceiver }
 		player.looking_dir = { 1, 1 }
 		player.health_points = 3
 		player.position.chunk = { 0, 0 }
 		player.position.offsets = { 76, 76 }
 		player.collider = { { 0, 0 }, { 8, 8 } }
-	}
+		player.damage_flash_palette = 0x0012
+		player.palette_mask = 0x0021
 
+	}
 	active_chunk_coords = { -1, -1 }
+
 
 	tilemap.chunks[0].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -401,9 +410,7 @@ update :: proc "c" () {
 	UpdateInputState()
 
 	player := GetEntityByName( EntityName.Player )
-	DrawTileChunk( &tilemap, player.position.chunk.x, player.position.chunk.y, 0, 0 )
-
-	if player.position.chunk != active_chunk_coords {
+	if player != nil && player.position.chunk != active_chunk_coords {
 		active_chunk_coords = player.position.chunk
 		// destroy ents outside current active chunk
 		for ent in &s_EntityPool {
@@ -419,6 +426,8 @@ update :: proc "c" () {
 			ent.position.chunk = active_chunk_coords
 		}
 	}
+
+	DrawTileChunk( &tilemap, active_chunk_coords.x, active_chunk_coords.y, 0, 0 )
 
 	UpdateEntities()
 	lights[0].pos = player.position.offsets

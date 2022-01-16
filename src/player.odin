@@ -97,11 +97,15 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	dir : ivec2 = { 0, 0 }
 	if s_gglob.game_state == GameState.Game {
-		if .LEFT in w4.GAMEPAD1^ {
-			dir.x -= 1
-		}
-		if .RIGHT in w4.GAMEPAD1^ {
-			dir.x += 1
+		if received_damage > 0 {
+			dir.x = pushed_back_direction.x
+		} else {
+			if .LEFT in w4.GAMEPAD1^ {
+				dir.x -= 1
+			}
+			if .RIGHT in w4.GAMEPAD1^ {
+				dir.x += 1
+			}
 		}
 	
 		move := dir
@@ -113,12 +117,16 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				move.x = 0
 			}
 		}
-	
-		if .UP in w4.GAMEPAD1^ {
-			dir.y -= 1
-		}
-		if .DOWN in w4.GAMEPAD1^ {
-			dir.y += 1
+		
+		if received_damage > 0 {
+			dir.y = pushed_back_direction.y
+		} else {
+			if .UP in w4.GAMEPAD1^ {
+				dir.y -= 1
+			}
+			if .DOWN in w4.GAMEPAD1^ {
+				dir.y += 1
+			}
 		}
 		move.y = dir.y
 		if move.y != 0 {
@@ -156,7 +164,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	}
 
 	moving := dir.x != 0 || dir.y != 0
-	if moving && entity.swinging_sword == 0 { // lock looking dir when swinging sword
+	if moving && swinging_sword == 0 && received_damage == 0 { // lock looking dir when swinging sword
 		looking_dir = dir
 	}
 
@@ -206,7 +214,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	}
 
 	// display player
-	w4.DRAW_COLORS^ = 0x0021
+	w4.DRAW_COLORS^ = entity.palette_mask
 	if entity.swinging_sword > 0 {
 		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
 		x, y := position.offsets.x, position.offsets.y

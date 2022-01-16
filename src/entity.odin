@@ -38,6 +38,7 @@ Entity :: struct {
 	received_damage: u8, // 0 means no damage were received recently, otherwise frame count since last damage received
 	inflicted_damage: u8, // 0 means no damage were inflicted recently, otherwise count frames since last damage inflicted, wrap around at 256
 	damage_flash_palette: u16, saved_palette : u16,
+	pushed_back_direction: ivec2, // when receiving damage, send entity in that direction for a couple of frames
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -134,6 +135,12 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 		if ent.health_points > 0 && IsCollidingWithEntity( hurt_box_world, &ent ) { // apply damage
 			if InflictDamage( &ent ) {
 				entity.inflicted_damage = 1
+				dir := ent.position.offsets - entity.position.offsets
+				dir_normalized := normalize_vec2( dir )
+				ent.pushed_back_direction = {
+					i32(dir_normalized.x * 2),
+					i32(dir_normalized.y * 2),
+				}
 			}
 		}
 	}
@@ -168,9 +175,17 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 		entity.received_damage += 1
 	}
 
+	DAMAGE_PUSH_BACK_LENGTH :: 16
+	if entity.health_points > 0 && entity.received_damage <= DAMAGE_PUSH_BACK_LENGTH {
+		if entity.name != EntityName.Player { // Let the player handle its own movement
+			entity.position.offsets += entity.pushed_back_direction
+		}
+	}
+
 	if entity.received_damage <= DAMAGE_ANIMATION_LENGTH {
 		entity.palette_mask = entity.damage_flash_palette if (entity.received_damage & 0b100) == 0 else entity.saved_palette
 	} else {
+		entity.palette_mask = entity.saved_palette
 		entity.received_damage = 0
 	}
 
