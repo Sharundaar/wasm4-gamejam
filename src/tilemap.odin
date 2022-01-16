@@ -78,6 +78,10 @@ GetTileWorldCoordinate :: proc "contextless" ( x, y: i32 ) -> ivec2 {
 	return { x*TILE_SIZE, y*TILE_SIZE }
 }
 
+GetTileWorldCoordinate2 :: proc "contextless" ( x, y: i32 ) -> ( i32, i32 ) {
+	return x*TILE_SIZE, y*TILE_SIZE
+}
+
 GetChunkFromChunkCoordinates :: proc "contextless" ( tilemap: ^TileMap, x, y: i32 ) -> ^TileChunk {
 	if x < 0 || y < 0 || x >= TILEMAP_CHUNK_COUNT_W || y >= TILEMAP_CHUNK_COUNT_H do return nil
 	return &tilemap.chunks[y*TILEMAP_CHUNK_COUNT_W + x];

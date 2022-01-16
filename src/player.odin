@@ -171,13 +171,22 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 					case ^DialogDef: Dialog_Start( interaction )
 				}
 			} else { // perform inventory object use
+
+				// swing sword action
 				entity.swinging_sword = 1
-				if looking_dir.x != 0 {
+				entity.flags += { .DamageMaker }
+				if looking_dir.x < 0 {
 					entity.animated_sprite = &PlayerAnimation_SwingSword_LeftRight
+					entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
+				} else if looking_dir.x > 0 {
+					entity.animated_sprite = &PlayerAnimation_SwingSword_LeftRight
+					entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
 				} else if looking_dir.y > 0 {
 					entity.animated_sprite = &PlayerAnimation_SwingSword_Front
+					entity.hurt_box = { { 0, 6 }, { 7, 10 } }
 				} else if looking_dir.y < 0 {
 					entity.animated_sprite = &PlayerAnimation_SwingSword_Back
+					entity.hurt_box = { { 0, -2 }, { 7, 2 } }
 				}
 				entity.animated_sprite.current_frame = 0
 			}
@@ -187,8 +196,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	if entity.swinging_sword > 0 {
 		// if we release wait that we at least have done a full swing
-		if !s_gglob.input_state.ADown && entity.swinging_sword > entity.animated_sprite.frames[0].length + 3 {
+		if ( !s_gglob.input_state.ADown || entity.inflicted_damage > 0 ) && entity.swinging_sword > entity.animated_sprite.frames[0].length + 3 {
 			entity.swinging_sword = 0
+			entity.flags -= { .DamageMaker }
+			entity.inflicted_damage = 0
 		} else {
 			if entity.swinging_sword < 255 do entity.swinging_sword += 1
 		}

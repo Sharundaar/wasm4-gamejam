@@ -7,6 +7,8 @@ EntityFlag :: enum u8 {
 	Interactible,
 	AnimatedSprite,
 	Collidable,
+	DamageMaker,
+	DamageReceiver,
 }
 EntityFlags :: distinct bit_set[EntityFlag; u8]
 
@@ -25,11 +27,17 @@ Entity :: struct {
 	looking_dir : ivec2,
 
 	animated_sprite: ^AnimatedSprite,
+	pause_animation: bool,
 	interaction: Interaction,
 	collider: rect,
+	hurt_box: rect, // if this box hit a collider it'll trigger a damage (providing the entity is hurtable)
 	palette_mask: u16,
-
+	
+	health_points: u8, // 0 means entity is dead
 	swinging_sword: u8, // 0 means we're not swinging, otherwise frame count since started swinging (clamp at 255)
+	received_damage: u8, // 0 means no damage were received recently, otherwise frame count since last damage received
+	inflicted_damage: u8, // 0 means no damage were inflicted recently, otherwise count frames since last damage inflicted, wrap around at 256
+	damage_flash_palette: u16, saved_palette : u16,
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -88,6 +96,8 @@ UpdateEntities :: proc "contextless" () {
 		if .InUse not_in entity.flags do continue
 		UpdatePlayer( &entity )
 		UpdateAnimatedSprite( &entity )
+		UpdateDamageMaker( &entity )
+		UpdateDamageReceiver( &entity )
 	}
 }
 
@@ -105,5 +115,71 @@ UpdateAnimatedSprite :: proc "contextless" ( entity: ^Entity ) {
 	if entity.palette_mask != 0 {
 		w4.DRAW_COLORS^ = entity.palette_mask
 	}
-	DrawAnimatedSprite( entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y )
+	DrawAnimatedSprite( entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y, {.Pause} if entity.pause_animation else nil )
+}
+
+UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
+	if .DamageMaker not_in entity.flags do return
+	if entity.inflicted_damage > 0 do entity.inflicted_damage += 1
+	pos := entity.position
+	hurt_box_world := translate_rect( entity.hurt_box, pos.offsets )
+	when SHOW_HURT_BOX {
+		w4.DRAW_COLORS^ = 0x21
+		w4.rect( hurt_box_world.min.x, hurt_box_world.min.y, u32( hurt_box_world.max.x - hurt_box_world.min.x ), u32( hurt_box_world.max.y - hurt_box_world.min.y ) )
+	}
+	for ent in &s_EntityPool {
+		if .InUse not_in ent.flags do continue
+		if .DamageReceiver not_in ent.flags do continue
+		if ent.id == entity.id do continue
+		if ent.health_points > 0 && IsCollidingWithEntity( hurt_box_world, &ent ) { // apply damage
+			if InflictDamage( &ent ) {
+				entity.inflicted_damage = 1
+			}
+		}
+	}
+}
+
+InflictDamage :: proc "contextless" ( receiver: ^Entity ) -> bool {
+	INVULNERABILITY_TIME :: 10 // invulnerable for 10 frames after receiving damage
+	if receiver.received_damage == 255 || (receiver.received_damage > 0 && receiver.received_damage <= INVULNERABILITY_TIME) do return false
+
+	receiver.received_damage = 255 // set at 255 so damage receiver module can start animation and stuff
+	receiver.health_points -= 1
+
+	return true
+}
+
+UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
+	if .DamageReceiver not_in entity.flags do return
+	
+	when SHOW_COLLIDER {
+		w4.DRAW_COLORS^ = 0x21
+		collider := GetWorldSpaceCollider( entity )
+		w4.rect( collider.min.x, collider.min.y, u32( collider.max.x - collider.min.x ), u32( collider.max.y - collider.min.y ) )
+	}
+
+	if entity.received_damage == 0 do return
+	if entity.saved_palette == 0 do entity.saved_palette = entity.palette_mask
+
+	DAMAGE_ANIMATION_LENGTH :: 24
+	if entity.received_damage == 255 {
+		entity.received_damage = 1
+	} else {
+		entity.received_damage += 1
+	}
+
+	if entity.received_damage <= DAMAGE_ANIMATION_LENGTH {
+		entity.palette_mask = entity.damage_flash_palette if (entity.received_damage & 0b100) == 0 else entity.saved_palette
+	} else {
+		entity.received_damage = 0
+	}
+
+	if entity.health_points == 0 { // make sure a dead entity can't inflict damage
+		entity.flags -= {.DamageMaker}
+		entity.pause_animation = true
+	}
+
+	if entity.health_points == 0 && entity.received_damage >= DAMAGE_ANIMATION_LENGTH {
+		DestroyEntity( entity )
+	}
 }

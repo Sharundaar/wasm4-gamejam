@@ -1,6 +1,8 @@
 package main
 
 DEVELOPMENT_BUILD :: false
+SHOW_HURT_BOX :: false
+SHOW_COLLIDER :: false
 
 import "w4"
 when DEVELOPMENT_BUILD {
@@ -24,6 +26,7 @@ translate_rect :: proc "contextless" ( r: rect, v: ivec2 ) -> rect {
 AnimationFlag :: enum {
 	FlipX,
 	FlipY,
+	Pause,
 }
 AnimationFlags :: distinct bit_set[AnimationFlag; u8]
 
@@ -172,12 +175,12 @@ AnimatedSprite_NextFrame :: proc "contextless" ( sprite: ^AnimatedSprite ) {
 
 DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32, flags: AnimationFlags = nil ) {
 	frame := &sprite.frames[sprite.current_frame]
-	flags := AnimationToBlitFlags( flags )
-	flags += sprite.img.flags
-	flags += AnimationToBlitFlags( frame.flags )
+	blit_flags := AnimationToBlitFlags( flags )
+	blit_flags += sprite.img.flags
+	blit_flags += AnimationToBlitFlags( frame.flags )
 	
-	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), flags )
-	if frame.length > 0 { // length of 0 describes a blocked frame and needs to be advanced manually
+	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), blit_flags )
+	if frame.length > 0 && .Pause not_in flags { // length of 0 describes a blocked frame and needs to be advanced manually
 		sprite.frame_counter += 1
 		if sprite.frame_counter >= frame.length {
 			AnimatedSprite_NextFrame( sprite )
@@ -235,6 +238,21 @@ DrawStatusUI :: proc "contextless" () {
 	w4.blit( &Images.status_bar.bytes[0], 0, i32(160-Images.status_bar.h), Images.status_bar.w, Images.status_bar.h, Images.status_bar.flags )
 }
 
+MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
+	ent: EntityTemplate
+
+	ent.position = { {}, { x, y } }
+	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
+	ent.collider = { {}, {8, 8} }
+	ent.hurt_box = { {}, {8, 8} }
+	ent.animated_sprite = &BatAnimation
+	ent.health_points = 1
+	ent.palette_mask = 0x30
+	ent.damage_flash_palette = 0x10
+
+	return ent
+}
+
 MiruAnimation := AnimatedSprite {
 	&Images.miru, 16, 16, 0,
 	{
@@ -287,6 +305,7 @@ MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 
 ents_c00 := []EntityTemplate {
 	MakeMiruEntity(),
+	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ),
 }
 
 ents_c01 := []EntityTemplate {
@@ -304,8 +323,9 @@ start :: proc "c" () {
 
 	{
 		player := AllocateEntity( EntityName.Player )
-		player.flags += {.Player}
+		player.flags += { .Player }
 		player.looking_dir = { 1, 1 }
+		player.health_points = 3
 		player.position.chunk = { 0, 0 }
 		player.position.offsets = { 76, 76 }
 		player.collider = { { 0, 0 }, { 8, 8 } }
