@@ -18,7 +18,10 @@ TileChunk :: struct {
 	entities: []EntityTemplate,
 }
 
-chunk_tile_collider :: union { rect }
+chunk_tile_collider :: struct {
+	collider: rect,
+	has_collider: b8,
+}
 
 TileMap :: struct {
 	chunks: [TILEMAP_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_H]TileChunk,
@@ -48,9 +51,10 @@ ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: iv
 		def := tilemap.tiledef[tile]
 		if def.solid {
 			x, y := i32(i) % TILE_CHUNK_COUNT_W, i32(i) / TILE_CHUNK_COUNT_W
-			tilemap.active_chunk_colliders[i] = rect{ {x * TILE_SIZE, y * TILE_SIZE}, {x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE} }
+			tilemap.active_chunk_colliders[i].collider = rect{ {x * TILE_SIZE, y * TILE_SIZE}, {x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE} }
+			tilemap.active_chunk_colliders[i].has_collider = true
 		} else {
-			tilemap.active_chunk_colliders[i] = nil
+			tilemap.active_chunk_colliders[i].has_collider = false
 		}
 	}
 }

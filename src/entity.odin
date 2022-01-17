@@ -312,10 +312,10 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 		broadphasebox := GetSweptBroadphaseBox( collider, move )
 		// DrawRect( broadphasebox )
 		collided := false
-		for c, i in s_gglob.tilemap.active_chunk_colliders {
-			if c == nil do continue
-			if C_TestAABB( broadphasebox, c.(rect) ) {
-				t, n := SweepAABB( collider, move, c.(rect) )
+		for c in s_gglob.tilemap.active_chunk_colliders {
+			if !c.has_collider do continue
+			if C_TestAABB( broadphasebox, c.collider ) {
+				t, n := SweepAABB( collider, move, c.collider )
 				if t == 1 do continue
 				when false {
 					b: [20]byte ; context = runtime.default_context()
