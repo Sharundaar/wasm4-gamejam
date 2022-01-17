@@ -2,7 +2,7 @@ package main
 
 DEVELOPMENT_BUILD :: false
 SHOW_HURT_BOX :: false
-SHOW_COLLIDER :: false
+SHOW_COLLIDER :: true
 
 import "w4"
 when DEVELOPMENT_BUILD {
@@ -148,12 +148,17 @@ UpdateInputState :: proc "contextless" () {
 	if wasBDown && BReleased do BReleased = true
 }
 
+DrawRect :: proc "contextless" ( r: rect ) {
+	w4.DRAW_COLORS^ = 0x21
+	w4.rect( r.min.x, r.min.y, u32( r.max.x - r.min.x ), u32( r.max.y - r.min.y ) )
+}
+
 // draw chunk with x/y offset from top of the screen
 DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_offs, y_offs: i32 ) {
-	w4.DRAW_COLORS^ = 0x1234
 	chunk := &tilemap.chunks[TILEMAP_CHUNK_COUNT_W * i32(chunk_y) + i32(chunk_x)];
 	print_buffer : [256]byte
 	for y in 0..<TILE_CHUNK_COUNT_H do for x in 0..<TILE_CHUNK_COUNT_W {
+		w4.DRAW_COLORS^ = 0x1234
 		tile := chunk.tiles[y * TILE_CHUNK_COUNT_W + x]
 		// context = runtime.default_context()
 		// str := fmt.bprint( print_buffer[:], tile )
@@ -164,6 +169,13 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 			i32(y_offs) + y * TILE_SIZE,
 		}
 		w4.blit_sub( &tilemap.tileset.bytes[0], pos_screen.x, pos_screen.y, u32( TILE_SIZE ), u32( TILE_SIZE ), u32( def.offsets.x ), u32( def.offsets.y ), int(tilemap.tileset.w), tilemap.tileset.flags )
+
+		when SHOW_COLLIDER {
+			switch r in tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x] {
+				case rect: DrawRect( r )
+				case:
+			}
+		}
 	}
 }
 
@@ -252,7 +264,7 @@ MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
 	ent.collider = { {}, {8, 8} }
 	ent.hurt_box = { { 0, 2 }, {8, 7} }
-	ent.animated_sprite = &BatAnimation
+	ent.animated_sprite = BatAnimation
 	ent.health_points = 2
 	ent.palette_mask = 0x130
 	ent.damage_flash_palette = 0x110
@@ -281,7 +293,7 @@ MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
 
 	ent.position = { {}, GetTileWorldCoordinate( 3, 1 ) }
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite = &MiruAnimation
+	ent.animated_sprite = MiruAnimation
 	ent.looking_dir = { 0, 1 }
 	ent.collider = { { 0, 0 }, { 16, 16 } }
 	ent.palette_mask = 0x0210
@@ -303,7 +315,7 @@ MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 
 	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite = &SwordAltarSprite
+	ent.animated_sprite = SwordAltarSprite
 	ent.palette_mask = 0x0210
 	ent.collider = { { 0, 0 }, { 5, 7 } }
 
@@ -312,11 +324,16 @@ MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 
 ents_c00 := []EntityTemplate {
 	MakeMiruEntity(),
-	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ),
 }
 
 ents_c01 := []EntityTemplate {
 	MakeSwordAltarEntity(),
+}
+
+ents_c10 := []EntityTemplate {
+	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ),
+	MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ),
+	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ),
 }
 
 @export
@@ -380,6 +397,8 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
+	tilemap.chunks[0+TILE_CHUNK_COUNT_W].entities = ents_c10
+
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -413,19 +432,7 @@ update :: proc "c" () {
 	player := GetEntityByName( EntityName.Player )
 	if player != nil && player.position.chunk != active_chunk_coords {
 		active_chunk_coords = player.position.chunk
-		// destroy ents outside current active chunk
-		for ent in &s_EntityPool {
-			if .InUse not_in ent.flags do continue
-			if ent.position.chunk != active_chunk_coords {
-				DestroyEntity( &ent )
-			}
-		}
-		// create entities linked to this chunk
-		active_chunk := GetChunkFromChunkCoordinates( &tilemap, player.position.chunk.x, player.position.chunk.y )
-		for ent_template in &active_chunk.entities {
-			ent := AllocateEntity( &ent_template )
-			ent.position.chunk = active_chunk_coords
-		}
+		ActivateChunk( &s_gglob.tilemap, active_chunk_coords )
 	}
 
 	DrawTileChunk( &tilemap, active_chunk_coords.x, active_chunk_coords.y, 0, 0 )

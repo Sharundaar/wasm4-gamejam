@@ -27,7 +27,7 @@ Entity :: struct {
 	position : GlobalCoordinates,
 	looking_dir : ivec2,
 
-	animated_sprite: ^AnimatedSprite,
+	animated_sprite: AnimatedSprite,
 	pause_animation: bool,
 	interaction: Interaction,
 	collider: rect,
@@ -39,9 +39,8 @@ Entity :: struct {
 	received_damage: u8, // 0 means no damage were received recently, otherwise frame count since last damage received
 	inflicted_damage: u8, // 0 means no damage were inflicted recently, otherwise count frames since last damage inflicted, wrap around at 256
 	damage_flash_palette: u16, saved_palette : u16,
-	pushed_back_direction: ivec2, // when receiving damage, send entity in that direction for a couple of frames
-
-	
+	pushed_back_dist: ivec2, // when receiving damage, push entity over an amount of frames
+	pushed_back_cached_pos: ivec2,
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -134,7 +133,7 @@ UpdateAnimatedSprite :: proc "contextless" ( entity: ^Entity ) {
 	if entity.palette_mask != 0 {
 		w4.DRAW_COLORS^ = entity.palette_mask
 	}
-	DrawAnimatedSprite( entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y, {.Pause} if entity.pause_animation else nil )
+	DrawAnimatedSprite( &entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y, {.Pause} if entity.pause_animation else nil )
 }
 
 UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
@@ -155,10 +154,11 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 				entity.inflicted_damage = 1
 				dir := ent.position.offsets - entity.position.offsets
 				dir_normalized := normalize_vec2( dir )
-				ent.pushed_back_direction = {
-					i32(dir_normalized.x * 2),
-					i32(dir_normalized.y * 2),
+				ent.pushed_back_dist = {
+					i32(dir_normalized.x * 20),
+					i32(dir_normalized.y * 20),
 				}
+				ent.pushed_back_cached_pos = ent.position.offsets
 			}
 		}
 	}
@@ -178,9 +178,8 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	if .DamageReceiver not_in entity.flags do return
 	
 	when SHOW_COLLIDER {
-		w4.DRAW_COLORS^ = 0x21
 		collider := GetWorldSpaceCollider( entity )
-		w4.rect( collider.min.x, collider.min.y, u32( collider.max.x - collider.min.x ), u32( collider.max.y - collider.min.y ) )
+		DrawRect( collider )
 	}
 
 	if entity.received_damage == 0 do return
@@ -196,7 +195,16 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	DAMAGE_PUSH_BACK_LENGTH :: 16
 	if entity.health_points > 0 && entity.received_damage <= DAMAGE_PUSH_BACK_LENGTH {
 		if entity.name != EntityName.Player { // Let the player handle its own movement
-			entity.position.offsets += entity.pushed_back_direction
+			move : ivec2
+			if entity.received_damage == DAMAGE_PUSH_BACK_LENGTH {
+				move = entity.pushed_back_dist
+			} else {
+				dist_x : f32 = f32( entity.pushed_back_dist.x ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
+				dist_y : f32 = f32( entity.pushed_back_dist.y ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
+				move = { i32(dist_x), i32(dist_y) }
+			}
+			entity.position.offsets = entity.pushed_back_cached_pos // kind of hackish
+			MoveEntity( entity, move )
 		}
 	}
 
@@ -214,5 +222,22 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 
 	if entity.health_points == 0 && entity.received_damage >= DAMAGE_ANIMATION_LENGTH {
 		DestroyEntity( entity )
+	}
+}
+
+// move an entity ensuring collision is evaluated properly
+MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool, normal: ivec2 ) {
+	if move == {} do return
+	if .Collidable not_in entity.flags {
+		entity.position.offsets += move
+		return true, {}
+	} else {
+		last_valid_position := entity.position.offsets
+		
+
+
+		entity.position.offsets = last_valid_position
+
+		return true, {}
 	}
 }

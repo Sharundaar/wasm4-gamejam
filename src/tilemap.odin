@@ -18,10 +18,41 @@ TileChunk :: struct {
 	entities: []EntityTemplate,
 }
 
+chunk_tile_collider :: union { rect }
+
 TileMap :: struct {
 	chunks: [TILEMAP_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_H]TileChunk,
 	tileset: ^Image,
 	tiledef: []TileDefinition,
+	active_chunk_colliders: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H] chunk_tile_collider,
+}
+
+ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: ivec2 ) {
+	// setup entities
+	// destroy ents outside current active chunk
+	for ent in &s_EntityPool {
+		if .InUse not_in ent.flags do continue
+		if ent.position.chunk != active_chunk_coords {
+			DestroyEntity( &ent )
+		}
+	}
+	// create entities linked to this chunk
+	active_chunk := GetChunkFromChunkCoordinates( tilemap, active_chunk_coords.x, active_chunk_coords.y )
+	for ent_template in &active_chunk.entities {
+		ent := AllocateEntity( &ent_template )
+		ent.position.chunk = active_chunk_coords
+	}
+
+	// update colliders
+	for tile, i in active_chunk.tiles {
+		def := tilemap.tiledef[tile]
+		if def.solid {
+			x, y := i32(i) % TILE_CHUNK_COUNT_W, i32(i) / TILE_CHUNK_COUNT_W
+			tilemap.active_chunk_colliders[i] = rect{ {x * TILE_SIZE, y * TILE_SIZE}, {x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE} }
+		} else {
+			tilemap.active_chunk_colliders[i] = nil
+		}
+	}
 }
 
 IsCollidingWithTilemap :: proc "contextless" ( tilemap: ^TileMap, top_left: GlobalCoordinates, w, h: i32 ) -> bool {

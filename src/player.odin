@@ -77,7 +77,7 @@ IsCollidingWithEntity :: proc "contextless" ( collider: rect, other: ^Entity ) -
 	return C_TestAABB( collider, other_collider )
 }
 
-GetFirstEntityInside :: proc "contextless" ( source: ^Entity, collider: rect ) -> ^Entity {
+GetFirstEntityInside_Collidable :: proc "contextless" ( source: ^Entity, collider: rect ) -> ^Entity {
 	for ent in &s_EntityPool {
 		if .InUse not_in ent.flags do continue
 		if .Collidable not_in ent.flags do continue
@@ -87,8 +87,23 @@ GetFirstEntityInside :: proc "contextless" ( source: ^Entity, collider: rect ) -
 	return nil
 }
 
+GetFirstEntityInside_Flags :: proc "contextless" ( source: ^Entity, collider: rect, flags: EntityFlags ) -> ^Entity {
+	for ent in &s_EntityPool {
+		if .InUse not_in ent.flags do continue
+		if (flags & ent.flags) != nil do continue
+		if ent.id == source.id do continue
+		if IsCollidingWithEntity( collider, &ent ) do return &ent
+	}
+	return nil
+}
+
+GetFirstEntityInside :: proc {
+	GetFirstEntityInside_Collidable,
+	GetFirstEntityInside_Flags,
+}
+
 IsCollidingWithAnyEntity :: proc "contextless" ( entity: ^Entity, collider: rect ) -> bool {
-	ent := GetFirstEntityInside( entity, collider )
+	ent := GetFirstEntityInside( entity, collider, EntityFlags{.Collidable} )
 	return ent != nil
 }
 
@@ -98,7 +113,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	dir : ivec2 = { 0, 0 }
 	if s_gglob.game_state == GameState.Game {
 		if received_damage > 0 {
-			dir.x = pushed_back_direction.x
+			// dir.x = pushed_back_direction.x
 		} else {
 			if .LEFT in w4.GAMEPAD1^ {
 				dir.x -= 1
@@ -107,19 +122,20 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				dir.x += 1
 			}
 		}
-	
 		move := dir
-		if move.x != 0 {
-			testing_pos := position; testing_pos.offsets += move
-			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
-			|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
-				move.x = 0
+		when false {
+			if move.x != 0 {
+				testing_pos := position; testing_pos.offsets += move
+				world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+				if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
+				|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
+					move.x = 0
+				}
 			}
 		}
-		
+
 		if received_damage > 0 {
-			dir.y = pushed_back_direction.y
+			// dir.y = pushed_back_direction.y
 		} else {
 			if .UP in w4.GAMEPAD1^ {
 				dir.y -= 1
@@ -129,16 +145,18 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 			}
 		}
 		move.y = dir.y
-		if move.y != 0 {
-			testing_pos := position; testing_pos.offsets += move
-			world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-			if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
-			|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
-				move.y = 0
+		when false {
+			if move.y != 0 {
+				testing_pos := position; testing_pos.offsets += move
+				world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
+				if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
+				|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
+					move.y = 0
+				}
 			}
 		}
 	
-		position.offsets += move
+		MoveEntity( entity, move )
 	
 		{ // trigger smooth transition ?
 			if position.offsets.x + PLAYER_W >= TILE_CHUNK_COUNT_W * TILE_SIZE {
@@ -184,16 +202,16 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				entity.swinging_sword = 1
 				entity.flags += { .DamageMaker }
 				if looking_dir.x < 0 {
-					entity.animated_sprite = &PlayerAnimation_SwingSword_LeftRight
+					entity.animated_sprite = PlayerAnimation_SwingSword_LeftRight
 					entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
 				} else if looking_dir.x > 0 {
-					entity.animated_sprite = &PlayerAnimation_SwingSword_LeftRight
+					entity.animated_sprite = PlayerAnimation_SwingSword_LeftRight
 					entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
 				} else if looking_dir.y > 0 {
-					entity.animated_sprite = &PlayerAnimation_SwingSword_Front
+					entity.animated_sprite = PlayerAnimation_SwingSword_Front
 					entity.hurt_box = { { 0, 6 }, { 7, 10 } }
 				} else if looking_dir.y < 0 {
-					entity.animated_sprite = &PlayerAnimation_SwingSword_Back
+					entity.animated_sprite = PlayerAnimation_SwingSword_Back
 					entity.hurt_box = { { 0, -2 }, { 7, 2 } }
 				}
 				entity.animated_sprite.current_frame = 0
@@ -218,16 +236,16 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	if entity.swinging_sword > 0 {
 		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
 		x, y := position.offsets.x, position.offsets.y
-		if entity.animated_sprite == &PlayerAnimation_SwingSword_LeftRight {
+		if looking_dir != 0 {
 			if flip != nil {
 				x -= 5
 			}
 		} else {
-			if entity.animated_sprite == &PlayerAnimation_SwingSword_Back {
+			if looking_dir.y < 0 {
 				y -= 2
 			}
 		}
-		DrawAnimatedSprite( entity.animated_sprite, x, y, flip )
+		DrawAnimatedSprite( &entity.animated_sprite, x, y, flip )
 	} else {
 		if moving {
 			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
