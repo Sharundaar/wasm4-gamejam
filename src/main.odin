@@ -29,27 +29,6 @@ normalize_vec2 :: proc "contextless" ( v: ivec2 ) -> [2]f32 {
 	return { f32(v.x) / l, f32(v.y) / l }
 }
 
-AnimationFlag :: enum {
-	FlipX,
-	FlipY,
-	Pause,
-}
-AnimationFlags :: distinct bit_set[AnimationFlag; u8]
-
-AnimationFrame :: struct {
-	length: u8,
-	x_offs: u8,
-	flags : AnimationFlags,
-}
-
-AnimatedSprite :: struct {
-	img: ^Image,
-	w, h: u32, y_offs: u8,
-	frames: []AnimationFrame,
-	current_frame: u8,
-	frame_counter: u8,
-}
-
 GameState :: enum {
 	Game,
 	Dialog,
@@ -112,7 +91,6 @@ BatAnimation := AnimatedSprite {
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 8, nil },
 	},
-	0, 0,
 }
 
 FireAnimation := AnimatedSprite {
@@ -121,7 +99,6 @@ FireAnimation := AnimatedSprite {
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 0, { .FlipX } },
 	},
-	0, 0,
 }
 
 
@@ -175,33 +152,6 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 				case rect: DrawRect( r )
 				case:
 			}
-		}
-	}
-}
-
-AnimationToBlitFlags :: proc "contextless" ( flags: AnimationFlags ) -> w4.Blit_Flags {
-	blit_flags : w4.Blit_Flags
-	blit_flags += {.FLIPX} if AnimationFlag.FlipX in flags else nil
-	blit_flags += {.FLIPY} if AnimationFlag.FlipY in flags else nil
-	return blit_flags
-}
-
-AnimatedSprite_NextFrame :: proc "contextless" ( sprite: ^AnimatedSprite ) {
-	sprite.frame_counter = 0
-	sprite.current_frame = u8( int( sprite.current_frame + 1 ) % len( sprite.frames ) )
-}
-
-DrawAnimatedSprite :: proc "contextless" ( sprite: ^AnimatedSprite, x, y: i32, flags: AnimationFlags = nil ) {
-	frame := &sprite.frames[sprite.current_frame]
-	blit_flags := AnimationToBlitFlags( flags )
-	blit_flags += sprite.img.flags
-	blit_flags += AnimationToBlitFlags( frame.flags )
-	
-	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), blit_flags )
-	if frame.length > 0 && .Pause not_in flags { // length of 0 describes a blocked frame and needs to be advanced manually
-		sprite.frame_counter += 1
-		if sprite.frame_counter >= frame.length {
-			AnimatedSprite_NextFrame( sprite )
 		}
 	}
 }
@@ -264,7 +214,7 @@ MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
 	ent.collider = { {}, {8, 8} }
 	ent.hurt_box = { { 0, 2 }, {8, 7} }
-	ent.animated_sprite = BatAnimation
+	ent.animated_sprite.sprite = &BatAnimation
 	ent.health_points = 2
 	ent.palette_mask = 0x130
 	ent.damage_flash_palette = 0x110
@@ -278,7 +228,6 @@ MiruAnimation := AnimatedSprite {
 		AnimationFrame{ 50, 0, nil },
 		AnimationFrame{ 50, 0, {.FlipX} },
 	},
-	0, 0,
 }
 MirusDialog := DialogDef {
 	"Miru",
@@ -293,7 +242,7 @@ MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
 
 	ent.position = { {}, GetTileWorldCoordinate( 3, 1 ) }
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite = MiruAnimation
+	ent.animated_sprite.sprite = &MiruAnimation
 	ent.looking_dir = { 0, 1 }
 	ent.collider = { { 0, 0 }, { 16, 16 } }
 	ent.palette_mask = 0x0210
@@ -308,14 +257,13 @@ SwordAltarSprite := AnimatedSprite {
 		AnimationFrame{ 0, 0, nil },
 		AnimationFrame{ 0, 6, nil },
 	},
-	0, 0,
 }
 MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 	ent : EntityTemplate
 
 	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite = SwordAltarSprite
+	ent.animated_sprite.sprite = &SwordAltarSprite
 	ent.palette_mask = 0x0210
 	ent.collider = { { 0, 0 }, { 5, 7 } }
 

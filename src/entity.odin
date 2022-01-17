@@ -29,7 +29,7 @@ Entity :: struct {
 	position : GlobalCoordinates,
 	looking_dir : ivec2,
 
-	animated_sprite: AnimatedSprite,
+	animated_sprite: AnimationController,
 	pause_animation: bool,
 	interaction: Interaction,
 	collider: rect,

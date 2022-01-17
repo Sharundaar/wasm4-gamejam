@@ -10,7 +10,6 @@ PlayerAnimation_Idle_Front := AnimatedSprite {
 		AnimationFrame{ 60, 0, nil },
 		AnimationFrame{ 50, 8, nil },
 	},
-	0, 0,
 }
 PlayerAnimation_Idle_Back := AnimatedSprite {
 	&Images.mc, 8, 8, 0,
@@ -18,7 +17,6 @@ PlayerAnimation_Idle_Back := AnimatedSprite {
 		AnimationFrame{ 60, 16, nil },
 		AnimationFrame{ 50, 24, nil },
 	},
-	0, 0,
 }
 PlayerAnimation_Move_Front := AnimatedSprite {
 	&Images.mc, 8, 8, 8,
@@ -26,7 +24,6 @@ PlayerAnimation_Move_Front := AnimatedSprite {
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 8, nil },
 	},
-	0, 0,
 }
 PlayerAnimation_Move_Back := AnimatedSprite {
 	&Images.mc, 8, 8, 8,
@@ -34,7 +31,6 @@ PlayerAnimation_Move_Back := AnimatedSprite {
 		AnimationFrame{ 15, 16, nil },
 		AnimationFrame{ 15, 24, nil },
 	},
-	0, 0,
 }
 
 PlayerAnimation_SwingSword_LeftRight := AnimatedSprite {
@@ -43,7 +39,6 @@ PlayerAnimation_SwingSword_LeftRight := AnimatedSprite {
 		AnimationFrame{ 5, 0, nil },
 		AnimationFrame{ 0, 13, nil },
 	},
-	0, 0,
 }
 PlayerAnimation_SwingSword_Front := AnimatedSprite {
 	&Images.mc, 8, 10, 10,
@@ -51,7 +46,6 @@ PlayerAnimation_SwingSword_Front := AnimatedSprite {
 		AnimationFrame{ 5, 32, nil },
 		AnimationFrame{ 0, 40, nil },
 	},
-	0, 0,
 }
 PlayerAnimation_SwingSword_Back := AnimatedSprite {
 	&Images.mc, 8, 10, 0,
@@ -59,7 +53,6 @@ PlayerAnimation_SwingSword_Back := AnimatedSprite {
 		AnimationFrame{ 5, 32, nil },
 		AnimationFrame{ 0, 40, nil },
 	},
-	0, 0,
 }
 
 GetWorldSpaceCollider :: proc "contextless" ( ent: ^Entity ) -> rect {
@@ -181,27 +174,27 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				entity.swinging_sword = 1
 				entity.flags += { .DamageMaker }
 				if looking_dir.x < 0 {
-					entity.animated_sprite = PlayerAnimation_SwingSword_LeftRight
+					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
 					entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
 				} else if looking_dir.x > 0 {
-					entity.animated_sprite = PlayerAnimation_SwingSword_LeftRight
+					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
 					entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
 				} else if looking_dir.y > 0 {
-					entity.animated_sprite = PlayerAnimation_SwingSword_Front
+					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Front
 					entity.hurt_box = { { 0, 6 }, { 7, 10 } }
 				} else if looking_dir.y < 0 {
-					entity.animated_sprite = PlayerAnimation_SwingSword_Back
+					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Back
 					entity.hurt_box = { { 0, -2 }, { 7, 2 } }
 				}
 				entity.animated_sprite.current_frame = 0
 			}
 			when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
 		}
-	}
+	} 
 
 	if entity.swinging_sword > 0 {
 		// if we release wait that we at least have done a full swing
-		if ( !s_gglob.input_state.ADown || entity.inflicted_damage > 0 ) && entity.swinging_sword > entity.animated_sprite.frames[0].length + 3 {
+		if ( !s_gglob.input_state.ADown || entity.inflicted_damage > 0 ) && entity.swinging_sword > entity.animated_sprite.sprite.frames[0].length + 3 {
 			entity.swinging_sword = 0
 			entity.flags -= { .DamageMaker }
 			entity.inflicted_damage = 0
@@ -210,12 +203,20 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		}
 	}
 
+	if entity.swinging_sword == 0 {
+		if moving {
+			entity.animated_sprite.sprite = &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
+		} else {
+			entity.animated_sprite.sprite = &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
+		}
+	}
+
 	// display player
 	w4.DRAW_COLORS^ = entity.palette_mask
 	if entity.swinging_sword > 0 {
 		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
 		x, y := position.offsets.x, position.offsets.y
-		if looking_dir != 0 {
+		if looking_dir.x != 0 {
 			if flip != nil {
 				x -= 5
 			}
@@ -228,12 +229,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	} else {
 		if moving {
 			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-			anim := &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
-			DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
+			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y, flip )
 		} else {
 			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-			anim := &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
-			DrawAnimatedSprite( anim, position.offsets.x, position.offsets.y, flip )
+			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y, flip )
 		}
 	}
 }
