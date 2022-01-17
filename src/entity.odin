@@ -1,7 +1,10 @@
 package main
 import "w4"
-import "core:strconv"
-import "core:runtime"
+
+when DEVELOPMENT_BUILD {
+	import "core:strconv"
+	import "core:runtime"
+}
 
 EntityFlag :: enum u8 {
 	InUse,
@@ -314,7 +317,7 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 			if C_TestAABB( broadphasebox, c.(rect) ) {
 				t, n := SweepAABB( collider, move, c.(rect) )
 				if t == 1 do continue
-				when true {
+				when false {
 					b: [20]byte ; context = runtime.default_context()
 					// w4.trace( strconv.itoa( b[:], i ))
 					w4.trace( strconv.ftoa( b[:], f64(t), 'f', -1, 32 ))

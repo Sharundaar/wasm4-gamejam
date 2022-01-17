@@ -16,8 +16,8 @@ AnimationFrame :: struct {
 }
 
 AnimatedSprite :: struct {
-	img: ^Image,
-	w, h: u32, y_offs: u8,
+	img: ImageKey,
+	w, h: u8, y_offs: u8,
 	frames: []AnimationFrame,
 }
 
@@ -41,11 +41,12 @@ AnimatedSprite_NextFrame :: proc "contextless" ( controller: ^AnimationControlle
 
 DrawAnimatedSprite :: proc "contextless" ( using controller: ^AnimationController, x, y: i32, flags: AnimationFlags = nil ) {
 	frame := &sprite.frames[current_frame]
+	img := GetImage( sprite.img )
 	blit_flags := AnimationToBlitFlags( flags )
-	blit_flags += sprite.img.flags
+	blit_flags += img.flags
 	blit_flags += AnimationToBlitFlags( frame.flags )
 	
-	w4.blit_sub( &sprite.img.bytes[0], x, y, sprite.w, sprite.h, u32(frame.x_offs), u32(sprite.y_offs), int(sprite.img.w), blit_flags )
+	w4.blit_sub( &img.bytes[0], x, y, u32(sprite.w), u32(sprite.h), u32(frame.x_offs), u32(sprite.y_offs), int(img.w), blit_flags )
 	if frame.length > 0 && .Pause not_in flags { // length of 0 describes a blocked frame and needs to be advanced manually
 		frame_counter += 1
 		if frame_counter >= frame.length {

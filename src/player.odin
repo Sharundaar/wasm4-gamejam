@@ -5,28 +5,28 @@ PLAYER_W, PLAYER_H :: 8, 8
 HALF_PLAYER_W, HALF_PLAYER_H :: 4, 4
 
 PlayerAnimation_Idle_Front := AnimatedSprite {
-	&Images.mc, 8, 8, 0,
+	ImageKey.mc, 8, 8, 0,
 	{
 		AnimationFrame{ 60, 0, nil },
 		AnimationFrame{ 50, 8, nil },
 	},
 }
 PlayerAnimation_Idle_Back := AnimatedSprite {
-	&Images.mc, 8, 8, 0,
+	ImageKey.mc, 8, 8, 0,
 	{
 		AnimationFrame{ 60, 16, nil },
 		AnimationFrame{ 50, 24, nil },
 	},
 }
 PlayerAnimation_Move_Front := AnimatedSprite {
-	&Images.mc, 8, 8, 8,
+	ImageKey.mc, 8, 8, 8,
 	{
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 8, nil },
 	},
 }
 PlayerAnimation_Move_Back := AnimatedSprite {
-	&Images.mc, 8, 8, 8,
+	ImageKey.mc, 8, 8, 8,
 	{
 		AnimationFrame{ 15, 16, nil },
 		AnimationFrame{ 15, 24, nil },
@@ -34,21 +34,21 @@ PlayerAnimation_Move_Back := AnimatedSprite {
 }
 
 PlayerAnimation_SwingSword_LeftRight := AnimatedSprite {
-	&Images.mc, 13, 8, 16,
+	ImageKey.mc, 13, 8, 16,
 	{
 		AnimationFrame{ 5, 0, nil },
 		AnimationFrame{ 0, 13, nil },
 	},
 }
 PlayerAnimation_SwingSword_Front := AnimatedSprite {
-	&Images.mc, 8, 10, 10,
+	ImageKey.mc, 8, 10, 10,
 	{
 		AnimationFrame{ 5, 32, nil },
 		AnimationFrame{ 0, 40, nil },
 	},
 }
 PlayerAnimation_SwingSword_Back := AnimatedSprite {
-	&Images.mc, 8, 10, 0,
+	ImageKey.mc, 8, 10, 0,
 	{
 		AnimationFrame{ 5, 32, nil },
 		AnimationFrame{ 0, 40, nil },

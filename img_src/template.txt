@@ -2,12 +2,19 @@ package main
 import "w4"
 
 Image :: struct { w, h: u32, bytes: []u8, flags: w4.Blit_Flags }
-Images : struct {
+
+ImageKey :: enum u8 {
 {{#sprites}}
-	{{odinName}}: Image,
+	{{odinName}},
 {{/sprites}}
-} = {
+}
+
+Images : []Image = {
 {{#sprites}}
 	{ {{width}}, {{height}}, { {{bytes}} }, {{odinFlags}} },
 {{/sprites}}
+}
+
+GetImage :: proc "contextless" ( key: ImageKey ) -> ^Image {
+	return &Images[key]
 }

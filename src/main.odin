@@ -86,7 +86,7 @@ tiledef := []TileDefinition{
 }
 
 BatAnimation := AnimatedSprite {
-	&Images.bat, 8, 8, 0,
+	ImageKey.bat, 8, 8, 0,
 	{
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 8, nil },
@@ -94,7 +94,7 @@ BatAnimation := AnimatedSprite {
 }
 
 FireAnimation := AnimatedSprite {
-	&Images.fire, 16, 16, 0,
+	ImageKey.fire, 16, 16, 0,
 	{
 		AnimationFrame{ 15, 0, nil },
 		AnimationFrame{ 15, 0, { .FlipX } },
@@ -202,8 +202,9 @@ GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
 }
 
 DrawStatusUI :: proc "contextless" () {
+	status_bar := GetImage( ImageKey.status_bar )
 	w4.DRAW_COLORS^ = 0x0001
-	w4.blit( &Images.status_bar.bytes[0], 0, i32(160-Images.status_bar.h), Images.status_bar.w, Images.status_bar.h, Images.status_bar.flags )
+	w4.blit( &status_bar.bytes[0], 0, i32(160-status_bar.h), status_bar.w, status_bar.h, status_bar.flags )
 }
 
 MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
@@ -223,7 +224,7 @@ MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 }
 
 MiruAnimation := AnimatedSprite {
-	&Images.miru, 16, 16, 0,
+	ImageKey.miru, 16, 16, 0,
 	{
 		AnimationFrame{ 50, 0, nil },
 		AnimationFrame{ 50, 0, {.FlipX} },
@@ -252,7 +253,7 @@ MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
 }
 
 SwordAltarSprite := AnimatedSprite {
-	&Images.sword_altar, 5, 7, 0,
+	ImageKey.sword_altar, 5, 7, 0,
 	{
 		AnimationFrame{ 0, 0, nil },
 		AnimationFrame{ 0, 6, nil },
@@ -358,7 +359,7 @@ start :: proc "c" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	tilemap.tileset = &Images.tileset
+	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
 
 	lights[0].enabled = true
@@ -404,10 +405,10 @@ TestGallery :: proc "contextless" () {
 	when false
 	{
 		w4.DRAW_COLORS^ = 0x4320
-		w4.blit(&Images.key.bytes[0], 20, 20, Images.key.w, Images.key.h)
-		w4.blit(&Images.dude.bytes[0], 30, 20, Images.dude.w, Images.dude.h)
-		w4.blit_sub(&Images.chest.bytes[0], 20, 30, 16, 16, 0, 0, int(Images.chest.w), Images.chest.flags)
-		w4.blit_sub(&Images.chest.bytes[0], 40, 30, 16, 16, 16, 0, int(Images.chest.w), Images.chest.flags)
+		w4.blit(ImageKey.key.bytes[0], 20, 20, Images.key.w, Images.key.h)
+		w4.blit(ImageKey.dude.bytes[0], 30, 20, Images.dude.w, Images.dude.h)
+		w4.blit_sub(ImageKey.chest.bytes[0], 20, 30, 16, 16, 0, 0, int(Images.chest.w), Images.chest.flags)
+		w4.blit_sub(ImageKey.chest.bytes[0], 40, 30, 16, 16, 16, 0, int(Images.chest.w), Images.chest.flags)
 	
 		w4.DRAW_COLORS^ = 0x4320
 		DrawAnimatedSprite( &BatAnimation, 40, 20 )
