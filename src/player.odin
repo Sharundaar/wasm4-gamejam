@@ -122,17 +122,6 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				dir.x += 1
 			}
 		}
-		move := dir
-		when false {
-			if move.x != 0 {
-				testing_pos := position; testing_pos.offsets += move
-				world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-				if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
-				|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
-					move.x = 0
-				}
-			}
-		}
 
 		if received_damage > 0 {
 			// dir.y = pushed_back_direction.y
@@ -144,17 +133,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				dir.y += 1
 			}
 		}
-		move.y = dir.y
-		when false {
-			if move.y != 0 {
-				testing_pos := position; testing_pos.offsets += move
-				world_space_collider := translate_rect( entity.collider, testing_pos.offsets )
-				if IsCollidingWithTilemap_Collider( &s_gglob.tilemap, testing_pos.chunk, world_space_collider ) \
-				|| IsCollidingWithAnyEntity( entity, world_space_collider ) {
-					move.y = 0
-				}
-			}
-		}
+		move := dir
 	
 		MoveEntity( entity, move )
 	

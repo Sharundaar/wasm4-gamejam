@@ -1,5 +1,7 @@
 package main
 import "w4"
+import "core:strconv"
+import "core:runtime"
 
 EntityFlag :: enum u8 {
 	InUse,
@@ -194,18 +196,16 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 
 	DAMAGE_PUSH_BACK_LENGTH :: 16
 	if entity.health_points > 0 && entity.received_damage <= DAMAGE_PUSH_BACK_LENGTH {
-		if entity.name != EntityName.Player { // Let the player handle its own movement
-			move : ivec2
-			if entity.received_damage == DAMAGE_PUSH_BACK_LENGTH {
-				move = entity.pushed_back_dist
-			} else {
-				dist_x : f32 = f32( entity.pushed_back_dist.x ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
-				dist_y : f32 = f32( entity.pushed_back_dist.y ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
-				move = { i32(dist_x), i32(dist_y) }
-			}
-			entity.position.offsets = entity.pushed_back_cached_pos // kind of hackish
-			MoveEntity( entity, move )
+		move : ivec2
+		if entity.received_damage == DAMAGE_PUSH_BACK_LENGTH {
+			move = entity.pushed_back_dist
+		} else {
+			dist_x : f32 = f32( entity.pushed_back_dist.x ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
+			dist_y : f32 = f32( entity.pushed_back_dist.y ) / DAMAGE_PUSH_BACK_LENGTH * f32( entity.received_damage )
+			move = { i32(dist_x), i32(dist_y) }
 		}
+		entity.position.offsets = entity.pushed_back_cached_pos // kind of hackish
+		MoveEntity( entity, move )
 	}
 
 	if entity.received_damage <= DAMAGE_ANIMATION_LENGTH {
@@ -225,6 +225,78 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	}
 }
 
+GetSweptBroadphaseBox :: proc "contextless" (b: rect, velocity: ivec2 ) -> rect
+{ 
+  broadphasebox : rect
+  broadphasebox.min.x = velocity.x > 0 ? b.min.x : b.min.x + velocity.x
+  broadphasebox.min.y = velocity.y > 0 ? b.min.y : b.min.y + velocity.y
+  broadphasebox.max.x = velocity.x > 0 ? b.max.x + velocity.x : b.max.x
+  broadphasebox.max.y = velocity.y > 0 ? b.max.y + velocity.y : b.max.y
+
+  return broadphasebox; 
+}
+
+SweepAABB :: proc "contextless" ( moving_box: rect, velocity: ivec2, static_box: rect ) -> (t: f32, normal: [2]f32) {
+	xInvEntry, yInvEntry: f32
+	xInvExit, yInvExit: f32
+
+	// find the distance between the objects on the near and far sides for both x and y 
+	if velocity.x > 0 {
+		xInvEntry = f32(static_box.min.x - moving_box.max.x)
+		xInvExit = f32(static_box.max.x - moving_box.min.x)
+	} else {
+		xInvEntry = f32(static_box.max.x - moving_box.min.x)
+		xInvExit = f32(static_box.min.x - moving_box.max.x)
+	}
+
+	if velocity.y > 0 {
+		yInvEntry = f32(static_box.min.y - moving_box.max.y)
+		yInvExit = f32(static_box.max.y - moving_box.min.y)
+	} else {
+		yInvEntry = f32(static_box.max.y - moving_box.min.y)
+		yInvExit = f32(static_box.min.y - moving_box.max.y)
+	}
+
+	xEntry, yEntry : f32
+	xExit, yExit : f32
+
+	if velocity.x == 0 {
+		xEntry = min(f32)
+		xExit = max(f32)
+	} else {
+		xEntry = xInvEntry / f32(velocity.x)
+		xExit = xInvExit / f32(velocity.x)
+	}
+
+	if velocity.y == 0 {
+		yEntry = min(f32)
+		yExit = max(f32)
+	} else {
+		yEntry = yInvEntry / f32(velocity.y)
+		yExit = yInvExit / f32(velocity.y)
+	}
+
+	entryTime := max( xEntry, yEntry )
+	exitTime := min( xExit, yExit )
+
+	if entryTime > exitTime || (xEntry < 0 && yEntry < 0) || xEntry > 1 || yEntry > 1 {
+		t = 1
+		normal = {}
+		return
+	} else {
+		if xEntry > yEntry {
+			normal.y = 0
+			normal.x = 1 if xInvEntry < 0 else -1
+		} else {
+			normal.x = 0
+			normal.y = 1 if yInvEntry < 0 else -1
+		}
+		t = entryTime
+
+		return
+	}
+}
+
 // move an entity ensuring collision is evaluated properly
 MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool, normal: ivec2 ) {
 	if move == {} do return
@@ -232,11 +304,45 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 		entity.position.offsets += move
 		return true, {}
 	} else {
-		last_valid_position := entity.position.offsets
-		
+		move := move
+		collider := GetWorldSpaceCollider( entity )
+		broadphasebox := GetSweptBroadphaseBox( collider, move )
+		// DrawRect( broadphasebox )
+		collided := false
+		for c, i in s_gglob.tilemap.active_chunk_colliders {
+			if c == nil do continue
+			if C_TestAABB( broadphasebox, c.(rect) ) {
+				t, n := SweepAABB( collider, move, c.(rect) )
+				if t == 1 do continue
+				when true {
+					b: [20]byte ; context = runtime.default_context()
+					// w4.trace( strconv.itoa( b[:], i ))
+					w4.trace( strconv.ftoa( b[:], f64(t), 'f', -1, 32 ))
+				}
+				
+				collided = true
+				move = { i32( t * f32( move.x ) ), i32( t * f32( move.y ) ) }
+				entity.position.offsets += move
+				dotprod := ( f32(move.x) * n.y + f32(move.y) * n.x ) * ( 1 - t )
+				move.x, move.y = i32(dotprod * n.y), i32(dotprod * n.x)
+				collider = GetWorldSpaceCollider( entity )
+				broadphasebox = GetSweptBroadphaseBox( collider, move )
+			}
+		}
 
+		for ent in &s_EntityPool {
+			if .InUse not_in ent.flags do continue
+			if .Collidable not_in ent.flags do continue
+			if ent.id == entity.id do continue
+			other_collider := GetWorldSpaceCollider( &ent )
+			if C_TestAABB( broadphasebox, other_collider ) {
+			
+			}
+		}
 
-		entity.position.offsets = last_valid_position
+		if !collided {
+			entity.position.offsets += move
+		}
 
 		return true, {}
 	}

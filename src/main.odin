@@ -2,7 +2,7 @@ package main
 
 DEVELOPMENT_BUILD :: false
 SHOW_HURT_BOX :: false
-SHOW_COLLIDER :: true
+SHOW_COLLIDER :: false
 
 import "w4"
 when DEVELOPMENT_BUILD {
@@ -347,7 +347,7 @@ start :: proc "c" () {
 
 	{
 		player := AllocateEntity( EntityName.Player )
-		player.flags += { .Player, .DamageReceiver }
+		player.flags += { .Player, .DamageReceiver, .Collidable }
 		player.looking_dir = { 1, 1 }
 		player.health_points = 3
 		player.position.chunk = { 0, 0 }
