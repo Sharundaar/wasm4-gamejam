@@ -39,6 +39,7 @@ Entity :: struct {
 	palette_mask: u16,
 	
 	health_points: u8, // 0 means entity is dead
+	max_health_points: u8, // 0 means entity is dead
 	swinging_sword: u8, // 0 means we're not swinging, otherwise frame count since started swinging (clamp at 255)
 	received_damage: u8, // 0 means no damage were received recently, otherwise frame count since last damage received
 	inflicted_damage: u8, // 0 means no damage were inflicted recently, otherwise count frames since last damage inflicted, wrap around at 256

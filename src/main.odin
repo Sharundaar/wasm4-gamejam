@@ -1,11 +1,12 @@
 package main
 
 DEVELOPMENT_BUILD :: false
-PRINT_FUNC :: true
+PRINT_FUNC :: false
 USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_TILE_BROADPHASE_TEST :: false
+SKIP_INTRO :: true
 
 import "w4"
 import "core:math"
@@ -225,6 +226,25 @@ DrawStatusUI :: proc "contextless" () {
 	status_bar := GetImage( ImageKey.status_bar )
 	w4.DRAW_COLORS^ = 0x0001
 	w4.blit( &status_bar.bytes[0], 0, i32(160-status_bar.h), status_bar.w, status_bar.h, status_bar.flags )
+	
+	player := GetEntityByName( EntityName.Player )
+	
+	// draw health
+	half_heart := GetImage( ImageKey.half_heart )
+	HEART_LEFT_PADDING :: 8
+	HEART_TOP_POSITION :: 160 - 16 + 4
+	HEART_SPACING :: 6
+	x : i32 = HEART_LEFT_PADDING
+	w4.DRAW_COLORS^ = 0x0320
+	for i in 0..<player.max_health_points {
+		even := (i % 2) == 0
+		flags := half_heart.flags
+		if !even do flags += {.FLIPX}
+		w4.blit( &half_heart.bytes[0], x, HEART_TOP_POSITION, half_heart.w, half_heart.h, flags )
+		if player.health_points <= (i+1) do w4.DRAW_COLORS^ = 0x0020
+		x += i32(half_heart.w) if even else HEART_SPACING
+	}
+
 }
 
 MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
@@ -418,20 +438,12 @@ start :: proc "c" () {
 	(w4.PALETTE^)[3] = 0x2c1e74
 
 	{
-		player := AllocateEntity( EntityName.Player )
-		player.flags += { .Player, .DamageReceiver, .Collidable }
-		player.looking_dir = { 1, 1 }
-		player.health_points = 3
-		player.position.chunk = { 0, 0 }
+		player := MakePlayer()
 		when USE_TEST_MAP {
-		player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 4, 4 }
+			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 4, 4 }
 		} else {
-		player.position.offsets = { 76, 76 }
+			player.position.offsets = { 76, 76 }
 		}
-		player.collider = { { 0, 0 }, { 8, 8 } }
-		player.damage_flash_palette = 0x0012
-		player.palette_mask = 0x0021
-
 	}
 	active_chunk_coords = { -1, -1 }
 
@@ -450,6 +462,10 @@ start :: proc "c" () {
 	lights[1].pos.y = 24
 	lights[1].r = 0.125
 	lights[1].s = 1.0
+
+	when SKIP_INTRO {
+		game_state = GameState.Game
+	}
 }
 
 fake_sin :: proc "contextless" ( x: f32 ) -> f32 {
