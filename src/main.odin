@@ -301,6 +301,29 @@ ents_c10 := []EntityTemplate {
 	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ),
 }
 
+ents_c11 := []EntityTemplate {
+	MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) ),
+}
+
+ChestSprite := AnimatedSprite {
+	ImageKey.chest, 8, 8, 0,
+	{
+		AnimationFrame{ 0, 0, nil },
+		AnimationFrame{ 0, 8, nil },
+	},
+}
+MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate{
+	ent : EntityTemplate
+
+	ent.position = { {}, { x + 4, y + 4 } }
+	ent.flags += { .AnimatedSprite, .Collidable }
+	ent.animated_sprite.sprite = &ChestSprite
+	ent.palette_mask = 0x4320
+	ent.collider = { { 0, 0 }, { 8, 8 } }
+
+	return ent
+}
+
 MakeWorldMap :: proc "contextless" () {
 	using s_gglob
 
@@ -345,15 +368,17 @@ MakeWorldMap :: proc "contextless" () {
 
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 1, 1, 1, 1, 0, 1, 1, 1, 0,
+		0, 1, 0, 0, 0, 0, 1, 0, 1, 0,
+		0, 1, 1, 1, 1, 1, 1, 0, 1, 0,
+		0, 1, 0, 0, 0, 0, 0, 0, 1, 0,
+		0, 1, 1, 1, 1, 1, 1, 0, 1, 0,
+		0, 1, 0, 0, 0, 0, 1, 0, 1, 0,
+		0, 1, 1, 0, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
+	tilemap.chunks[1+TILE_CHUNK_COUNT_W].entities = ents_c11
+
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
 }
