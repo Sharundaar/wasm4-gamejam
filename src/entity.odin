@@ -229,14 +229,14 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 }
 
 GetSweptBroadphaseBox :: proc "contextless" (b: rect, velocity: ivec2 ) -> rect
-{ 
-  broadphasebox : rect
-  broadphasebox.min.x = velocity.x > 0 ? b.min.x : b.min.x + velocity.x
-  broadphasebox.min.y = velocity.y > 0 ? b.min.y : b.min.y + velocity.y
-  broadphasebox.max.x = velocity.x > 0 ? b.max.x + velocity.x : b.max.x
-  broadphasebox.max.y = velocity.y > 0 ? b.max.y + velocity.y : b.max.y
+{
+	broadphasebox : rect
+	broadphasebox.min.x = b.min.x if velocity.x > 0 else b.min.x + velocity.x
+	broadphasebox.min.y = b.min.y if velocity.y > 0 else b.min.y + velocity.y
+	broadphasebox.max.x = b.max.x + velocity.x if velocity.x > 0 else b.max.x
+	broadphasebox.max.y = b.max.y + velocity.y if velocity.y > 0 else b.max.y
 
-  return broadphasebox; 
+	return broadphasebox; 
 }
 
 SweepAABB :: proc "contextless" ( moving_box: rect, velocity: ivec2, static_box: rect ) -> (t: f32, normal: [2]f32) {
@@ -355,15 +355,21 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 			}
 		}
 
-		when false {
-			for ent in &s_EntityPool {
-				if .InUse not_in ent.flags do continue
-				if .Collidable not_in ent.flags do continue
-				if ent.id == entity.id do continue
-				other_collider := GetWorldSpaceCollider( &ent )
-				if C_TestAABB( broadphasebox, other_collider ) {
+		for ent in &s_EntityPool {
+			if .InUse not_in ent.flags do continue
+			if .Collidable not_in ent.flags do continue
+			if ent.id == entity.id do continue
+			other_collider := GetWorldSpaceCollider( &ent )
+			if C_TestAABB( broadphasebox, other_collider ) {
+				t, n := SweepAABB( collider, move, other_collider )
+				if t == 1 do continue
 				
-				}
+				partial_move := ivec2{ i32( t * f32( move.x ) ), i32( t * f32( move.y ) ) }
+				entity.position.offsets += partial_move
+				dotprod := ( f32(move.x) * n.y + f32(move.y) * n.x ) * ( 1 - t )
+				move.x, move.y = i32(dotprod * n.y), i32(dotprod * n.x)
+				collider = GetWorldSpaceCollider( entity )
+				broadphasebox = GetSweptBroadphaseBox( collider, move )
 			}
 		}
 
