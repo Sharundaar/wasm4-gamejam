@@ -66,6 +66,7 @@ GameGlob :: struct {
 	game_state: GameState,
 	input_state: InputState,
 	dialog_ui: DialogUIData,
+	global_frame_counter: u64,
 }
 s_gglob : GameGlob
 
@@ -172,7 +173,6 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 	}
 }
 
-r : f32 = 0.125
 GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
 	DW, DH :: 160, 128+16
 	texture : [(DW/8)*DH]u8
@@ -441,16 +441,29 @@ start :: proc "c" () {
 	lights[0].r = 0.125
 	lights[0].s = 4.0
 
-	lights[1].enabled = true
+	lights[1].enabled = false
 	lights[1].pos.x = 64
 	lights[1].pos.y = 24
 	lights[1].r = 0.125
 	lights[1].s = 1.0
 }
 
+fake_sin :: proc "contextless" ( x: f32 ) -> f32 {
+	sign : f32 = 1 if x >= 0 else -1
+	x := x if x >= 0 else -x
+
+	for x > math.PI {
+		x -= math.PI
+		sign = -sign
+	}
+
+	return sign * 4*x / (math.PI*math.PI) * (math.PI - x)
+}
+
 @export
 update :: proc "c" () {
 	using s_gglob
+	s_gglob.global_frame_counter += 1
 	UpdateInputState()
 
 	player := GetEntityByName( EntityName.Player )
@@ -462,7 +475,9 @@ update :: proc "c" () {
 	DrawTileChunk( &tilemap, active_chunk_coords.x, active_chunk_coords.y, 0, 0 )
 
 	UpdateEntities()
+
 	lights[0].pos = player.position.offsets
+	lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
 
 	DrawStatusUI()
 	Dialog_Update()
