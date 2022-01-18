@@ -51,6 +51,7 @@ normalize_vec2 :: proc "contextless" ( v: ivec2 ) -> [2]f32 {
 }
 
 GameState :: enum {
+	MainMenu,
 	Game,
 	Dialog,
 }
@@ -67,6 +68,9 @@ GameGlob :: struct {
 	input_state: InputState,
 	dialog_ui: DialogUIData,
 	global_frame_counter: u64,
+	fading_counter: u8,
+	fading_out: b8,
+	mid_fade_callback : proc "contextless" (),
 }
 s_gglob : GameGlob
 
@@ -460,34 +464,90 @@ fake_sin :: proc "contextless" ( x: f32 ) -> f32 {
 	return sign * 4*x / (math.PI*math.PI) * (math.PI - x)
 }
 
+
+
+UpdateFade :: proc "contextless" () {
+	if s_gglob.fading_counter > 0 {
+		s_gglob.fading_counter += 1
+		if s_gglob.fading_out {
+			if s_gglob.fading_counter > 120 {
+				s_gglob.fading_out = false
+				s_gglob.fading_counter = 1
+				s_gglob.mid_fade_callback()
+			}
+			else if s_gglob.fading_counter > 90 {
+				(w4.PALETTE^)[0] = 0x2c1e73
+				(w4.PALETTE^)[1] = 0x2c1e73
+				(w4.PALETTE^)[2] = 0x2c1e73
+			} else if s_gglob.fading_counter > 60 {
+				(w4.PALETTE^)[0] = 0x665A88
+				(w4.PALETTE^)[1] = 0x64416E
+				(w4.PALETTE^)[2] = 0x5E2774
+			} else if s_gglob.fading_counter > 30 {
+				(w4.PALETTE^)[0] = 0xA0979B
+				(w4.PALETTE^)[1] = 0x9D6569
+				(w4.PALETTE^)[2] = 0x903173
+			}
+		} else {
+			if s_gglob.fading_counter > 120 {
+				s_gglob.fading_counter = 0
+			} else if s_gglob.fading_counter > 90 {
+				(w4.PALETTE^)[0] = 0xdad3af
+				(w4.PALETTE^)[1] = 0xd58863
+				(w4.PALETTE^)[2] = 0xc23a73
+			} else if s_gglob.fading_counter > 60 {
+				(w4.PALETTE^)[0] = 0xA0979B
+				(w4.PALETTE^)[1] = 0x9D6569
+				(w4.PALETTE^)[2] = 0x903173
+			} else if s_gglob.fading_counter > 30 {
+				(w4.PALETTE^)[0] = 0x665A88
+				(w4.PALETTE^)[1] = 0x64416E
+				(w4.PALETTE^)[2] = 0x5E2774
+			}
+		}
+	}
+}
+
+StartFade :: proc "contextless" ( mid_fade_callback: proc "contextless" () ) {
+	s_gglob.fading_counter = 1
+	s_gglob.fading_out = true
+	s_gglob.mid_fade_callback = mid_fade_callback
+}
+
 @export
 update :: proc "c" () {
 	using s_gglob
 	s_gglob.global_frame_counter += 1
 	UpdateInputState()
 
-	player := GetEntityByName( EntityName.Player )
-	if player != nil && player.position.chunk != active_chunk_coords {
-		active_chunk_coords = player.position.chunk
-		ActivateChunk( &s_gglob.tilemap, active_chunk_coords )
+	if s_gglob.game_state == GameState.MainMenu {
+		w4.DRAW_COLORS^ = 0x2341
+		title_screen := GetImage( ImageKey.title_screen )
+		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
+		if s_gglob.input_state.APressed {
+			StartFade( proc "contextless" () { s_gglob.game_state = GameState.Game } )
+		}
+	} else {
+		player := GetEntityByName( EntityName.Player )
+		if player != nil && player.position.chunk != active_chunk_coords {
+			active_chunk_coords = player.position.chunk
+			ActivateChunk( &s_gglob.tilemap, active_chunk_coords )
+		}
+	
+		DrawTileChunk( &tilemap, active_chunk_coords.x, active_chunk_coords.y, 0, 0 )
+	
+		UpdateEntities()
+	
+		lights[0].pos = player.position.offsets
+		lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
+	
+		DrawStatusUI()
+		Dialog_Update()
+	
+		// GenerateDitherPattern(0,0)
 	}
 
-	DrawTileChunk( &tilemap, active_chunk_coords.x, active_chunk_coords.y, 0, 0 )
-
-	UpdateEntities()
-
-	lights[0].pos = player.position.offsets
-	lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
-
-	DrawStatusUI()
-	Dialog_Update()
-
-	// GenerateDitherPattern(0,0)
-
-	/*
-	w4.text("Hello from Odin!", 16, 130)
-	w4.text("Press X to blink", 16, 140)
-	*/
+	UpdateFade()
 }
 
 
