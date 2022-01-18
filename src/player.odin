@@ -60,8 +60,8 @@ GetWorldSpaceCollider :: proc "contextless" ( ent: ^Entity ) -> rect {
 }
 
 C_TestAABB :: proc "contextless" ( a, b: rect ) -> bool {
-    if a.max.x < b.min.x || a.min.x > b.max.x do return false
-    if a.max.y < b.min.y || a.min.y > b.max.y do return false
+    if a.max.x <= b.min.x || a.min.x >= b.max.x do return false
+    if a.max.y <= b.min.y || a.min.y >= b.max.y do return false
     return true
 }
 
@@ -108,10 +108,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if received_damage > 0 {
 			// dir.x = pushed_back_direction.x
 		} else {
-			if .LEFT in w4.GAMEPAD1^ {
+			if .LEFT in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
 				dir.x -= 1
 			}
-			if .RIGHT in w4.GAMEPAD1^ {
+			if .RIGHT in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
 				dir.x += 1
 			}
 		}
@@ -119,10 +119,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if received_damage > 0 {
 			// dir.y = pushed_back_direction.y
 		} else {
-			if .UP in w4.GAMEPAD1^ {
+			if .UP in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
 				dir.y -= 1
 			}
-			if .DOWN in w4.GAMEPAD1^ {
+			if .DOWN in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
 				dir.y += 1
 			}
 		}
