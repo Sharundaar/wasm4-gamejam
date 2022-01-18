@@ -288,8 +288,8 @@ SweepAABB :: proc "contextless" ( moving_box: rect, velocity: ivec2, static_box:
 		return
 	} else {
 		if xEntry > yEntry {
-			normal.y = 0
 			normal.x = 1 if xInvEntry < 0 else -1
+			normal.y = 0
 		} else {
 			normal.x = 0
 			normal.y = 1 if yInvEntry < 0 else -1
@@ -310,42 +310,64 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 		move := move
 		collider := GetWorldSpaceCollider( entity )
 		broadphasebox := GetSweptBroadphaseBox( collider, move )
-		// DrawRect( broadphasebox )
-		collided := false
-		for c in s_gglob.tilemap.active_chunk_colliders {
-			if !c.has_collider do continue
-			if C_TestAABB( broadphasebox, c.collider ) {
-				t, n := SweepAABB( collider, move, c.collider )
-				if t == 1 do continue
-				when false {
-					b: [20]byte ; context = runtime.default_context()
-					// w4.trace( strconv.itoa( b[:], i ))
-					w4.trace( strconv.ftoa( b[:], f64(t), 'f', -1, 32 ))
+		when SHOW_COLLIDER {
+			DrawRect( broadphasebox, 0x33 )
+		}
+
+		tile_touched := GetTilesTouchedByWorldRect( broadphasebox )
+		start_tile_coords := ivec2 {
+			broadphasebox.min.x / TILE_SIZE if move.x >= 0 else broadphasebox.max.x / TILE_SIZE,
+			broadphasebox.min.y / TILE_SIZE if move.y >= 0 else broadphasebox.max.y / TILE_SIZE,
+		}
+		last_tile_touched := ivec2 {
+			tile_touched.min.x if move.x < 0 else tile_touched.max.x,
+			tile_touched.min.y if move.y < 0 else tile_touched.max.y,
+		}
+		tile_direction := ivec2 {
+			-1 if move.x < 0 else 1,
+			-1 if move.y < 0 else 1,
+		}
+		when SHOW_TILE_BROADPHASE_TEST {
+			DrawRect( {
+				{ tile_touched.min.x * TILE_SIZE, tile_touched.min.y * TILE_SIZE },
+				{ (tile_touched.max.x + 1) * TILE_SIZE, (tile_touched.max.y + 1) * TILE_SIZE },
+			} )
+			DrawRect( { tested_tile_coords * TILE_SIZE, (tested_tile_coords + { 1, 1 }) * TILE_SIZE }, 0x33 )
+			DrawRect( { last_tile_touched * TILE_SIZE, (last_tile_touched + { 1, 1 }) * TILE_SIZE }, 0x11 )
+		}
+		for y := start_tile_coords.y; tile_direction.y * (last_tile_touched.y - y) >= 0; y += tile_direction.y {
+			for x := start_tile_coords.x; tile_direction.x * (last_tile_touched.x - x) >= 0; x += tile_direction.x {
+				if x < 0 || x >= TILE_CHUNK_COUNT_W do continue
+				if y < 0 || y >= TILE_CHUNK_COUNT_H do continue
+				c := s_gglob.tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x]
+				if !c.has_collider do continue
+				if C_TestAABB( broadphasebox, c.collider ) {
+					t, n := SweepAABB( collider, move, c.collider )
+					if t == 1 do continue
+					
+					partial_move := ivec2{ i32( t * f32( move.x ) ), i32( t * f32( move.y ) ) }
+					entity.position.offsets += partial_move
+					dotprod := ( f32(move.x) * n.y + f32(move.y) * n.x ) * ( 1 - t )
+					move.x, move.y = i32(dotprod * n.y), i32(dotprod * n.x)
+					collider = GetWorldSpaceCollider( entity )
+					broadphasebox = GetSweptBroadphaseBox( collider, move )
 				}
+			}
+		}
+
+		when false {
+			for ent in &s_EntityPool {
+				if .InUse not_in ent.flags do continue
+				if .Collidable not_in ent.flags do continue
+				if ent.id == entity.id do continue
+				other_collider := GetWorldSpaceCollider( &ent )
+				if C_TestAABB( broadphasebox, other_collider ) {
 				
-				collided = true
-				move = { i32( t * f32( move.x ) ), i32( t * f32( move.y ) ) }
-				entity.position.offsets += move
-				dotprod := ( f32(move.x) * n.y + f32(move.y) * n.x ) * ( 1 - t )
-				move.x, move.y = i32(dotprod * n.y), i32(dotprod * n.x)
-				collider = GetWorldSpaceCollider( entity )
-				broadphasebox = GetSweptBroadphaseBox( collider, move )
+				}
 			}
 		}
 
-		for ent in &s_EntityPool {
-			if .InUse not_in ent.flags do continue
-			if .Collidable not_in ent.flags do continue
-			if ent.id == entity.id do continue
-			other_collider := GetWorldSpaceCollider( &ent )
-			if C_TestAABB( broadphasebox, other_collider ) {
-			
-			}
-		}
-
-		if !collided {
-			entity.position.offsets += move
-		}
+		entity.position.offsets += move
 
 		return true, {}
 	}

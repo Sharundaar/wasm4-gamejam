@@ -1,16 +1,37 @@
 package main
 
 DEVELOPMENT_BUILD :: false
+PRINT_FUNC :: true
+USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
+SHOW_TILE_BROADPHASE_TEST :: false
 
 import "w4"
-when DEVELOPMENT_BUILD {
-	import "core:fmt"
-	import "core:runtime"
-}
 import "core:math"
 
+when PRINT_FUNC {
+	import "core:strconv"
+	import "core:runtime"
+}
+print_float :: proc "contextless" ( f: f32 ) {
+when PRINT_FUNC {
+	buf : [24]byte
+	context = runtime.default_context()
+	str := strconv.ftoa( buf[:], f64(f), 'f', -1, 32 )
+	w4.trace( str )
+}
+}
+
+print_int :: proc "contextless" ( i: i32 ) {
+when PRINT_FUNC {
+	buf : [24]byte
+	context = runtime.default_context()
+	str := strconv.itoa( buf[:], int(i) )
+	w4.trace( str )
+}
+}
+	
 ivec2 :: distinct [2]i32
 rect :: struct {
 	min, max: ivec2,
@@ -102,15 +123,6 @@ FireAnimation := AnimatedSprite {
 }
 
 
-print :: proc "contextless" ( args: ..any ) {
-	when DEVELOPMENT_BUILD {
-		context = runtime.default_context()
-		buffer : [256]u8
-		str := fmt.bprint( buffer[:], args )
-		w4.trace( string( buffer[:] ) )
-	}
-}
-
 UpdateInputState :: proc "contextless" () {
 	using s_gglob.input_state
 	APressed = false ; AReleased = false
@@ -125,8 +137,9 @@ UpdateInputState :: proc "contextless" () {
 	if wasBDown && BReleased do BReleased = true
 }
 
-DrawRect :: proc "contextless" ( r: rect ) {
-	w4.DRAW_COLORS^ = 0x21
+DrawRect :: proc "contextless" ( r: rect, color: u16 = 0 ) {
+	w4.DRAW_COLORS^ = color
+	if color == 0 do w4.DRAW_COLORS^ = 0x12
 	w4.rect( r.min.x, r.min.y, u32( r.max.x - r.min.x ), u32( r.max.y - r.min.y ) )
 }
 
@@ -148,9 +161,12 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 		w4.blit_sub( &tilemap.tileset.bytes[0], pos_screen.x, pos_screen.y, u32( TILE_SIZE ), u32( TILE_SIZE ), u32( def.offsets.x ), u32( def.offsets.y ), int(tilemap.tileset.w), tilemap.tileset.flags )
 
 		when SHOW_COLLIDER {
-			switch r in tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x] {
-				case rect: DrawRect( r )
-				case:
+			{
+				c := tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x]
+				using c
+				if has_collider {
+					DrawRect( collider )
+				}
 			}
 		}
 	}
@@ -285,29 +301,8 @@ ents_c10 := []EntityTemplate {
 	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ),
 }
 
-@export
-start :: proc "c" () {
+MakeWorldMap :: proc "contextless" () {
 	using s_gglob
-
-	(w4.PALETTE^)[0] = 0xdad3af
-	(w4.PALETTE^)[1] = 0xd58863
-	(w4.PALETTE^)[2] = 0xc23a73
-	(w4.PALETTE^)[3] = 0x2c1e74
-
-	{
-		player := AllocateEntity( EntityName.Player )
-		player.flags += { .Player, .DamageReceiver, .Collidable }
-		player.looking_dir = { 1, 1 }
-		player.health_points = 3
-		player.position.chunk = { 0, 0 }
-		player.position.offsets = { 76, 76 }
-		player.collider = { { 0, 0 }, { 8, 8 } }
-		player.damage_flash_palette = 0x0012
-		player.palette_mask = 0x0021
-
-	}
-	active_chunk_coords = { -1, -1 }
-
 
 	tilemap.chunks[0].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -361,6 +356,61 @@ start :: proc "c" () {
 	}
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
+}
+
+when USE_TEST_MAP {
+
+MakeTestMap :: proc "contextless" () {
+	using s_gglob
+	tilemap.chunks[0].tiles = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+		0, 1, 1, 1, 1, 0, 1, 0, 1, 0,
+		0, 1, 1, 1, 1, 0, 0, 0, 1, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	}
+	tilemap.tileset = GetImage( ImageKey.tileset )
+	tilemap.tiledef = tiledef
+}
+
+}
+
+@export
+start :: proc "c" () {
+	using s_gglob
+
+	(w4.PALETTE^)[0] = 0xdad3af
+	(w4.PALETTE^)[1] = 0xd58863
+	(w4.PALETTE^)[2] = 0xc23a73
+	(w4.PALETTE^)[3] = 0x2c1e74
+
+	{
+		player := AllocateEntity( EntityName.Player )
+		player.flags += { .Player, .DamageReceiver, .Collidable }
+		player.looking_dir = { 1, 1 }
+		player.health_points = 3
+		player.position.chunk = { 0, 0 }
+		when USE_TEST_MAP {
+		player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 4, 4 }
+		} else {
+		player.position.offsets = { 76, 76 }
+		}
+		player.collider = { { 0, 0 }, { 8, 8 } }
+		player.damage_flash_palette = 0x0012
+		player.palette_mask = 0x0021
+
+	}
+	active_chunk_coords = { -1, -1 }
+
+	when USE_TEST_MAP {
+		MakeTestMap()
+	} else {
+		MakeWorldMap()
+	}
 
 	lights[0].enabled = true
 	lights[0].r = 0.125

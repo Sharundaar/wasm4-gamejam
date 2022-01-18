@@ -64,7 +64,6 @@ Dialog_Update :: proc "contextless" () {
             }
     }
 
-    print( y_offs )
     w4.DRAW_COLORS^ = 0x0021
     dialog_background := GetImage( ImageKey.dialog_background )
     w4.blit( &dialog_background.bytes[0], 0, 160 - i32(y_offs), dialog_background.w, dialog_background.h, dialog_background.flags )

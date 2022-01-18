@@ -117,7 +117,27 @@ GetTileWorldCoordinate2 :: proc "contextless" ( x, y: i32 ) -> ( i32, i32 ) {
 	return x*TILE_SIZE, y*TILE_SIZE
 }
 
+GetTileLocalCoordinate_XY :: proc "contextless" ( x, y: i32 ) -> ivec2 {
+	return { x / TILE_SIZE, y / TILE_SIZE }
+}
+
+GetTileLocalCoordinate_Vec :: proc "contextless" ( p: ivec2 ) -> ivec2 {
+	return p / TILE_SIZE
+}
+
+GetTileLocalCoordinate :: proc {
+	GetTileLocalCoordinate_XY,
+	GetTileLocalCoordinate_Vec,
+}
+
 GetChunkFromChunkCoordinates :: proc "contextless" ( tilemap: ^TileMap, x, y: i32 ) -> ^TileChunk {
 	if x < 0 || y < 0 || x >= TILEMAP_CHUNK_COUNT_W || y >= TILEMAP_CHUNK_COUNT_H do return nil
 	return &tilemap.chunks[y*TILEMAP_CHUNK_COUNT_W + x];
+}
+
+GetTilesTouchedByWorldRect :: proc "contextless" ( r: rect ) -> rect {
+	return {
+		{ r.min.x / TILE_SIZE, r.min.y / TILE_SIZE },
+		{ (r.max.x - 1) / TILE_SIZE, (r.max.y - 1) / TILE_SIZE },
+	}
 }

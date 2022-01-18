@@ -108,10 +108,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if received_damage > 0 {
 			// dir.x = pushed_back_direction.x
 		} else {
-			if .LEFT in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
+			if .LEFT in w4.GAMEPAD1^ {
 				dir.x -= 1
 			}
-			if .RIGHT in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
+			if .RIGHT in w4.GAMEPAD1^ {
 				dir.x += 1
 			}
 		}
@@ -119,10 +119,10 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if received_damage > 0 {
 			// dir.y = pushed_back_direction.y
 		} else {
-			if .UP in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
+			if .UP in w4.GAMEPAD1^ {
 				dir.y -= 1
 			}
-			if .DOWN in w4.GAMEPAD1^ && s_gglob.input_state.BPressed {
+			if .DOWN in w4.GAMEPAD1^ {
 				dir.y += 1
 			}
 		}
