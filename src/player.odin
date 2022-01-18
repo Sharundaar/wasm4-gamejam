@@ -214,25 +214,27 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	// display player
 	w4.DRAW_COLORS^ = entity.palette_mask
 	if entity.swinging_sword > 0 {
-		flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
+		flip := true if looking_dir.x < 0 else false
 		x, y := position.offsets.x, position.offsets.y
-		if looking_dir.x != 0 {
-			if flip != nil {
-				x -= 5
-			}
-		} else {
-			if looking_dir.y < 0 {
-				y -= 2
-			}
+		if looking_dir.x != 0 && flip {
+			x -= 5
+		} else if looking_dir.y < 0 {
+			y -= 2
 		}
-		DrawAnimatedSprite( &entity.animated_sprite, x, y, flip )
+		if flip do entity.animated_sprite.flags += {.FlipX}
+		   else do entity.animated_sprite.flags -= {.FlipX}
+		DrawAnimatedSprite( &entity.animated_sprite, x, y )
 	} else {
 		if moving {
-			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y, flip )
+			flip := true if looking_dir.x < 0 else false
+			if flip do entity.animated_sprite.flags += {.FlipX}
+			   else do entity.animated_sprite.flags -= {.FlipX}
+			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y )
 		} else {
-			flip : AnimationFlags = {.FlipX} if looking_dir.x < 0 else nil
-			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y, flip )
+			flip := true if looking_dir.x < 0 else false
+			if flip do entity.animated_sprite.flags += {.FlipX}
+			   else do entity.animated_sprite.flags -= {.FlipX}
+			DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y )
 		}
 	}
 }

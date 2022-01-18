@@ -33,7 +33,6 @@ Entity :: struct {
 	looking_dir : ivec2,
 
 	animated_sprite: AnimationController,
-	pause_animation: bool,
 	interaction: Interaction,
 	collider: rect,
 	hurt_box: rect, // if this box hit a collider it'll trigger a damage (providing the entity is hurtable)
@@ -138,7 +137,7 @@ UpdateAnimatedSprite :: proc "contextless" ( entity: ^Entity ) {
 	if entity.palette_mask != 0 {
 		w4.DRAW_COLORS^ = entity.palette_mask
 	}
-	DrawAnimatedSprite( &entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y, {.Pause} if entity.pause_animation else nil )
+	DrawAnimatedSprite( &entity.animated_sprite, entity.position.offsets.x, entity.position.offsets.y )
 }
 
 UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
@@ -220,7 +219,7 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 
 	if entity.health_points == 0 { // make sure a dead entity can't inflict damage
 		entity.flags -= {.DamageMaker}
-		entity.pause_animation = true
+		entity.animated_sprite.flags += {.Pause}
 	}
 
 	if entity.health_points == 0 && entity.received_damage >= DAMAGE_ANIMATION_LENGTH {

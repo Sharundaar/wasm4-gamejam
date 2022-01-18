@@ -25,6 +25,7 @@ AnimationController :: struct {
     sprite: ^AnimatedSprite,
     current_frame: u8,
 	frame_counter: u8,
+	flags: AnimationFlags,
 }
 
 AnimationToBlitFlags :: proc "contextless" ( flags: AnimationFlags ) -> w4.Blit_Flags {
@@ -39,7 +40,7 @@ AnimatedSprite_NextFrame :: proc "contextless" ( controller: ^AnimationControlle
 	controller.current_frame = u8( int( controller.current_frame + 1 ) % len( controller.sprite.frames ) )
 }
 
-DrawAnimatedSprite :: proc "contextless" ( using controller: ^AnimationController, x, y: i32, flags: AnimationFlags = nil ) {
+DrawAnimatedSprite :: proc "contextless" ( using controller: ^AnimationController, x, y: i32 ) {
 	frame := &sprite.frames[current_frame]
 	img := GetImage( sprite.img )
 	blit_flags := AnimationToBlitFlags( flags )
