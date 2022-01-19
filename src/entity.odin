@@ -51,6 +51,8 @@ Entity :: struct {
 	
 	picked_point: ivec2, // picked point by bat brains to go to
 	picked_point_counter: u8, // timer to wait before picking a new point after reaching destination
+
+	on_death: proc "contextless" (), // function call when hp fall to 0
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -214,6 +216,9 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	if entity.health_points == 0 { // make sure a dead entity can't inflict damage
 		entity.flags -= {.DamageMaker}
 		entity.animated_sprite.flags += {.Pause}
+		if entity.on_death != nil {
+			entity.on_death()
+		}
 	}
 
 	if entity.health_points == 0 && entity.received_damage >= DAMAGE_ANIMATION_LENGTH {

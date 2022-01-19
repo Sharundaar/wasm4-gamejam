@@ -257,7 +257,7 @@ MakePlayer :: proc "contextless" () -> ^Entity {
 	player.damage_flash_palette = 0x0012
 	player.palette_mask = 0x0021
 
-	player.inventory.items[InventoryItem.Sword] = false
+	player.inventory.items[InventoryItem.Sword] = true when START_WITH_SWORD else false
 	player.inventory.items[InventoryItem.Torch] = false
 	SelectNextItem( &player.inventory )
 

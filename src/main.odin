@@ -7,6 +7,7 @@ SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
+START_WITH_SWORD :: true
 
 import "w4"
 import "core:math"
@@ -365,8 +366,19 @@ ents_c01 :: proc "contextless" () {
 	MakeSwordAltarEntity()
 }
 
+
+BatDeathDialog := DialogDef {
+	"Bat",
+	{
+		{ "noo", "why did you kill mee" },
+		{ "i had", "a family"},
+	},
+}
 ents_c10 :: proc "contextless" () {
-	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) )
+	bat1 := MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) )
+	bat1.on_death = proc "contextless" () {
+		Dialog_Start( &BatDeathDialog )
+	}
 	MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) )
 	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) )
 }
