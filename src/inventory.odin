@@ -11,14 +11,14 @@ InventoryItem :: enum {
 	Count,
 }
 
-InventoryOffset :: struct { x, w: u8 }
+InventoryOffset :: struct { x, w: u8, mask: u16 }
 InventoryUIData :: struct {
 	icons: [InventoryItem.Count]InventoryOffset, // x and w offset into the inventory data image
 }
 s_InventoryUIData := InventoryUIData {
 	{
-		{ 0, 5 },
-		{ 5, 5 },
+		{ 0, 5, 0x2140 },
+		{ 5, 5, 0x2143 },
 	},
 }
 
@@ -39,9 +39,9 @@ DrawInventory :: proc "contextless" ( start_x, start_y: i32, inventory: ^Invento
 	x, y := start_x, start_y
 
 	icons := GetImage( ImageKey.ui_items_icon )
-	w4.DRAW_COLORS^ = 0x2341
 	for has_item, idx in inventory.items {
 		if has_item {
+			w4.DRAW_COLORS^ = s_InventoryUIData.icons[idx].mask
 			w4.blit_sub( &icons.bytes[0], x, y, u32(s_InventoryUIData.icons[idx].w), 8, u32(s_InventoryUIData.icons[idx].x), 0, int(icons.w), icons.flags )
 		}
 		x += INVENTORY_ITEM_SIZE + INVENTORY_ITEM_SPACING
@@ -59,11 +59,31 @@ DrawInventory :: proc "contextless" ( start_x, start_y: i32, inventory: ^Invento
 }
 
 GiveNewItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) {
-	
+	s_gglob.game_state = GameState.NewItemAnimation
+	s_gglob.new_item = item
+	s_gglob.new_item_animation_counter = 0
+	s_gglob.new_item_entity_target = entity
 }
 
 NewItemAnimation_Update :: proc "contextless" () {
-	if s_gglob.state != GameState.NewItemAnimation do return
+	if s_gglob.game_state != GameState.NewItemAnimation do return
 
+	ANIMATION_DURATION :: 90
 
+	x := s_gglob.new_item_entity_target.position.offsets.x + ( 8 - i32(s_InventoryUIData.icons[s_gglob.new_item].w ) ) / 2
+	y := s_gglob.new_item_entity_target.position.offsets.y - 8 - 6
+
+	t := f32(s_gglob.new_item_animation_counter) / ANIMATION_DURATION
+	y += auto_cast ( t * 4 )
+
+	icons := GetImage( ImageKey.ui_items_icon )
+	w4.DRAW_COLORS^ = s_InventoryUIData.icons[s_gglob.new_item].mask
+	w4.blit_sub( &icons.bytes[0], x, y, u32(s_InventoryUIData.icons[s_gglob.new_item].w), 8, u32(s_InventoryUIData.icons[s_gglob.new_item].x), 0, int(icons.w), icons.flags )
+
+	if s_gglob.new_item_animation_counter > ANIMATION_DURATION {
+		s_gglob.game_state = GameState.Game
+		s_gglob.new_item_entity_target.inventory.items[s_gglob.new_item] = true
+	}
+
+	s_gglob.new_item_animation_counter += 1
 }

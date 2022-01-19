@@ -7,6 +7,9 @@ TILE_CHUNK_COUNT_H : i32 : 9
 TILEMAP_CHUNK_COUNT_W : i32 : 10
 TILEMAP_CHUNK_COUNT_H : i32 : 10
 
+TILEMAP_CHUNK_W :: TILE_SIZE * TILE_CHUNK_COUNT_W
+TILEMAP_CHUNK_H :: TILE_SIZE * TILE_CHUNK_COUNT_H
+
 TileDefinition :: struct {
 	offsets: ivec2, // offsets in the source texture
 	solid: bool,

@@ -1,7 +1,7 @@
 package main
 
 DEVELOPMENT_BUILD :: false
-PRINT_FUNC :: false
+PRINT_FUNC :: true
 USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
@@ -34,6 +34,7 @@ when PRINT_FUNC {
 }
 	
 ivec2 :: distinct [2]i32
+i8vec2 :: distinct [2]i8
 rect :: struct {
 	min, max: ivec2,
 }
@@ -73,27 +74,52 @@ GameGlob :: struct {
 	fading_counter: u8,
 	fading_out: b8,
 	mid_fade_callback : proc "contextless" (),
-	
+	new_item_animation_counter : u16,
+	new_item : InventoryItem,
+	new_item_entity_target : ^Entity,
 }
 s_gglob : GameGlob
 
 GlobalCoordinates :: struct {
 	chunk: ivec2,
 	offsets: ivec2,
+	// sub_pixel_offset: i8vec2, // when reach 100, regularize offsets to + 1, used for small movements
 }
 
-RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
-	result := coord
-	for n in 0..<2 {
-		l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
-		l *= TILE_SIZE
-		for result.offsets[n] >= l {
-			result.offsets[n] -= l
-			result.chunk[n] += 1
+when false {
+	ApplySubPixelCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
+		if result.sub_pixel_offset.x >= 100 {
+			result.offsets.x += 1
+			result.sub_pixel_offset.x -= 100
 		}
-		for result.offsets[n] < 0 {
-			result.offsets[n] += l
-			result.chunk[n] -= 1
+		if result.sub_pixel_offset.x < 0 {
+			result.offsets.x -= 1
+			result.sub_pixel_offset.x += 100
+		}
+		if result.sub_pixel_offset.y < 0 {
+			result.offsets.y -= 1
+			result.sub_pixel_offset.y += 100
+		}
+	}
+}
+
+RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates, move_chunks := true ) -> GlobalCoordinates {
+	result := coord
+	when false {
+		result = ApplySubPixelCoordinate( result )
+	}
+	if move_chunks {
+		for n in 0..<2 {
+			l := TILE_CHUNK_COUNT_W if n == 0 else TILE_CHUNK_COUNT_H
+			l *= TILE_SIZE
+			for result.offsets[n] >= l {
+				result.offsets[n] -= l
+				result.chunk[n] += 1
+			}
+			for result.offsets[n] < 0 {
+				result.offsets[n] += l
+				result.chunk[n] -= 1
+			}
 		}
 	}
 	return result
@@ -265,6 +291,7 @@ MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
 	ent.health_points = 2
 	ent.palette_mask = 0x130
 	ent.damage_flash_palette = 0x110
+	ent.picked_point = ent.position.offsets
 
 	return ent
 }
@@ -279,8 +306,9 @@ MiruAnimation := AnimatedSprite {
 MirusDialog := DialogDef {
 	"Miru",
 	{
-		{ "Oh hi !", "It's been a while" },
+		{ "Oh hi !", "you're new ?" },
 		{ "Can you give", "me a hand ?" },
+		{ "Kill the bats", "south of here" },
 	},
 }
 
@@ -311,7 +339,8 @@ SwordAltarContainer := Container {
 		altar.flags -= {.Interactible}
 		AnimatedSprite_NextFrame( &altar.animated_sprite )
 		player := GetEntityByName( EntityName.Player )
-		player.inventory.items[InventoryItem.Sword] = true
+		GiveNewItem( player, InventoryItem.Sword )
+		// player.inventory.items[InventoryItem.Sword] = true
 	},
 }
 MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
@@ -482,6 +511,7 @@ start :: proc "c" () {
 
 	when SKIP_INTRO {
 		game_state = GameState.Game
+		InitRand( 0 )
 	}
 }
 
@@ -559,6 +589,7 @@ update :: proc "c" () {
 		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
 		if s_gglob.input_state.APressed {
 			StartFade( proc "contextless" () { s_gglob.game_state = GameState.Game } )
+			InitRand( s_gglob.global_frame_counter )
 		}
 	} else {
 		player := GetEntityByName( EntityName.Player )

@@ -48,6 +48,9 @@ Entity :: struct {
 	pushed_back_dist: ivec2, // when receiving damage, push entity over an amount of frames
 	pushed_back_cached_pos: ivec2,
 	inventory: Inventory, // player inventory
+	
+	picked_point: ivec2, // picked point by bat brains to go to
+	picked_point_counter: u8, // timer to wait before picking a new point after reaching destination
 }
 EntityTemplate :: distinct Entity // compression ?
 
@@ -109,20 +112,7 @@ UpdateEntities :: proc "contextless" () {
 		UpdateDamageMaker( &entity )
 		UpdateDamageReceiver( &entity )
 
-		// UpdateBatBehavior( &entity )
-	}
-}
-
-UpdateBatBehavior :: proc "contextless" ( entity: ^Entity ) {
-	if entity.name != EntityName.Bat do return
-
-	player := GetEntityByName( EntityName.Player )
-	if player != nil {
-		if entity.received_damage > 0 do return
-		dir := player.position.offsets - entity.position.offsets
-		dir_normalized := normalize_vec2( dir )
-		dir = { i32( dir_normalized.x + 0.5 if dir_normalized.x > 0 else dir_normalized.x - 0.5 ), i32( dir_normalized.y + 0.5 if dir_normalized.y > 0 else dir_normalized.y - 0.5 ) }
-		entity.position.offsets += dir
+		UpdateBatBehavior( &entity )
 	}
 }
 
@@ -156,6 +146,7 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 		if .InUse not_in ent.flags do continue
 		if .DamageReceiver not_in ent.flags do continue
 		if ent.id == entity.id do continue
+		if ent.name == entity.name do continue // ideally this should be a "collision layer" check, but I think this should be good enough
 		if ent.health_points > 0 && IsCollidingWithEntity( hurt_box_world, &ent ) { // apply damage
 			if InflictDamage( &ent ) {
 				entity.inflicted_damage = 1
@@ -303,11 +294,10 @@ SweepAABB :: proc "contextless" ( moving_box: rect, velocity: ivec2, static_box:
 }
 
 // move an entity ensuring collision is evaluated properly
-MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool, normal: ivec2 ) {
+MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) {
 	if move == {} do return
 	if .Collidable not_in entity.flags {
 		entity.position.offsets += move
-		return true, {}
 	} else {
 		move := move
 		collider := GetWorldSpaceCollider( entity )
@@ -376,7 +366,39 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) -> ( hit: bool
 		}
 
 		entity.position.offsets += move
-
-		return true, {}
 	}
+
+	if entity.name == EntityName.Player { // hacks in case you get pushed outside your current chunk
+		regularized := false
+		if entity.position.offsets.x + entity.collider.max.x - entity.collider.min.x >= TILE_CHUNK_COUNT_W * TILE_SIZE {
+			entity.position.offsets.x = 0
+			entity.position.chunk.x += 1
+			regularized = true
+		}
+		if entity.position.offsets.y + entity.collider.max.y - entity.collider.min.y >= TILE_CHUNK_COUNT_H * TILE_SIZE {
+			entity.position.offsets.y = 0
+			entity.position.chunk.y += 1
+			regularized = true
+		}
+		if entity.position.offsets.x < 0 {
+			entity.position.offsets.x = TILE_CHUNK_COUNT_W * TILE_SIZE - PLAYER_W - 1
+			entity.position.chunk.x -= 1
+			regularized = true
+		}
+		if entity.position.offsets.y < 0 {
+			entity.position.offsets.y = TILE_CHUNK_COUNT_H * TILE_SIZE - PLAYER_H - 1
+			entity.position.chunk.y -= 1
+			regularized = true
+		}
+
+		// shouldn't be necessary but for safety
+		entity.position = RegularizeCoordinate( entity.position )
+
+		if regularized {
+			entity.pushed_back_cached_pos = entity.position.offsets
+		}
+	} else {
+		entity.position = RegularizeCoordinate( entity.position, false )
+	}
+
 }
