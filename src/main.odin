@@ -279,8 +279,8 @@ DrawStatusUI :: proc "contextless" () {
 	DrawInventory( INVENTORY_LEFT_OFFSET, INVENTORY_TOP_POSITION, &player.inventory )
 }
 
-MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
-	ent: EntityTemplate
+MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
+	ent := AllocateEntity( EntityName.Bat )
 
 	ent.name = EntityName.Bat
 	ent.position = { {}, { x, y } }
@@ -312,8 +312,8 @@ MirusDialog := DialogDef {
 	},
 }
 
-MakeMiruEntity :: proc "contextless" () -> EntityTemplate {
-	ent : EntityTemplate
+MakeMiruEntity :: proc "contextless" () -> ^Entity {
+	ent := AllocateEntity( EntityName.Miru )
 
 	ent.position = { {}, GetTileWorldCoordinate( 3, 1 ) }
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
@@ -343,8 +343,8 @@ SwordAltarContainer := Container {
 		// player.inventory.items[InventoryItem.Sword] = true
 	},
 }
-MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
-	ent : EntityTemplate
+MakeSwordAltarEntity :: proc "contextless" () -> ^Entity {
+	ent := AllocateEntity( EntityName.SwordAltar )
 
 	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
 	ent.name = EntityName.SwordAltar
@@ -382,8 +382,8 @@ ChestSprite := AnimatedSprite {
 		AnimationFrame{ 0, 8, nil },
 	},
 }
-MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate{
-	ent : EntityTemplate
+MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
+	ent := AllocateEntity()
 
 	ent.position = { {}, { x + 4, y + 4 } }
 	ent.flags += { .AnimatedSprite, .Collidable }
