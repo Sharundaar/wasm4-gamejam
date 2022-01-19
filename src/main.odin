@@ -1,7 +1,7 @@
 package main
 
 DEVELOPMENT_BUILD :: false
-PRINT_FUNC :: true
+PRINT_FUNC :: false
 USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
@@ -357,22 +357,22 @@ MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 	return ent
 }
 
-ents_c00 := []EntityTemplate {
-	MakeMiruEntity(),
+ents_c00 :: proc "contextless" () {
+	MakeMiruEntity()
 }
 
-ents_c01 := []EntityTemplate {
-	MakeSwordAltarEntity(),
+ents_c01 :: proc "contextless" () {
+	MakeSwordAltarEntity()
 }
 
-ents_c10 := []EntityTemplate {
-	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ),
-	MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ),
-	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ),
+ents_c10 :: proc "contextless" () {
+	MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) )
+	MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) )
+	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) )
 }
 
-ents_c11 := []EntityTemplate {
-	MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) ),
+ents_c11 :: proc "contextless" () {
+	MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) )
 }
 
 ChestSprite := AnimatedSprite {
@@ -408,7 +408,7 @@ MakeWorldMap :: proc "contextless" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
-	tilemap.chunks[0].entities = ents_c00
+	tilemap.chunks[0].populate_function = ents_c00
 
 	tilemap.chunks[1].tiles = {
 		0, 0, 0, 0, 0, 0, 0, 3, 0, 0,
@@ -421,7 +421,7 @@ MakeWorldMap :: proc "contextless" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
 	}
-	tilemap.chunks[1].entities = ents_c01
+	tilemap.chunks[1].populate_function = ents_c01
 
 	tilemap.chunks[0+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
@@ -434,7 +434,7 @@ MakeWorldMap :: proc "contextless" () {
 		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	tilemap.chunks[0+TILE_CHUNK_COUNT_W].entities = ents_c10
+	tilemap.chunks[0+TILE_CHUNK_COUNT_W].populate_function = ents_c10
 
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].tiles = {
 		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
@@ -447,7 +447,7 @@ MakeWorldMap :: proc "contextless" () {
 		0, 1, 1, 0, 1, 1, 1, 1, 1, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	tilemap.chunks[1+TILE_CHUNK_COUNT_W].entities = ents_c11
+	tilemap.chunks[1+TILE_CHUNK_COUNT_W].populate_function = ents_c11
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
