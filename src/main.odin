@@ -313,6 +313,13 @@ MirusDialog := DialogDef {
 		{ "Kill the bats", "south of here" },
 	},
 }
+MirusDialog_KilledBat := DialogDef {
+	"Miru",
+	{
+		{ "You did it!", "" },
+		{ "Thanks, here's", "a lil' something"},
+	},
+}
 
 MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	ent := AllocateEntity( EntityName.Miru )
@@ -324,6 +331,9 @@ MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	ent.collider = { { 0, 0 }, { 16, 16 } }
 	ent.palette_mask = 0x0210
 	ent.interaction = &MirusDialog
+	if Quest_AreComplete( {.KilledBat1, .KilledBat2, .KilledBat3} ) {
+		ent.interaction = &MirusDialog_KilledBat
+	}
 
 	return ent
 }
@@ -342,7 +352,6 @@ SwordAltarContainer := Container {
 		AnimatedSprite_NextFrame( &altar.animated_sprite )
 		player := GetEntityByName( EntityName.Player )
 		Inventory_GiveNewItem( player, InventoryItem.Sword )
-		// player.inventory.items[InventoryItem.Sword] = true
 	},
 }
 MakeSwordAltarEntity :: proc "contextless" () -> ^Entity {
@@ -385,12 +394,22 @@ BatDeathDialog := DialogDef {
 	},
 }
 ents_c10 :: proc "contextless" () {
-	bat1 := MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) )
-	bat1.on_death = proc "contextless" () {
-		Dialog_Start( &BatDeathDialog )
+	if !Quest_IsComplete( .KilledBat1 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = proc "contextless" () {
+			Dialog_Start( &BatDeathDialog )
+			Quest_Complete( .KilledBat1 )
+		}
 	}
-	MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) )
-	MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) )
+	if !Quest_IsComplete( .KilledBat2 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = proc "contextless" () {
+			Quest_Complete( .KilledBat2 )
+		}
+	}
+	if !Quest_IsComplete( .KilledBat3 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = proc "contextless" () {
+			Quest_Complete( .KilledBat3 )
+		}
+	}
 }
 
 ents_c11 :: proc "contextless" () {
