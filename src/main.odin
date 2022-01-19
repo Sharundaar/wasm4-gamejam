@@ -55,6 +55,7 @@ GameState :: enum {
 	MainMenu,
 	Game,
 	Dialog,
+	NewItemAnimation,
 }
 
 InputState :: struct {
@@ -72,6 +73,7 @@ GameGlob :: struct {
 	fading_counter: u8,
 	fading_out: b8,
 	mid_fade_callback : proc "contextless" (),
+	
 }
 s_gglob : GameGlob
 
@@ -231,10 +233,10 @@ DrawStatusUI :: proc "contextless" () {
 	
 	// draw health
 	half_heart := GetImage( ImageKey.half_heart )
-	HEART_LEFT_PADDING :: 8
+	HEART_LEFT_OFFSET :: 8
 	HEART_TOP_POSITION :: 160 - 16 + 4
 	HEART_SPACING :: 6
-	x : i32 = HEART_LEFT_PADDING
+	x : i32 = HEART_LEFT_OFFSET
 	w4.DRAW_COLORS^ = 0x0320
 	for i in 0..<player.max_health_points {
 		even := (i % 2) == 0
@@ -245,6 +247,10 @@ DrawStatusUI :: proc "contextless" () {
 		x += i32(half_heart.w) if even else HEART_SPACING
 	}
 
+	// draw inventory
+	INVENTORY_LEFT_OFFSET  :: 160 - ( i32(InventoryItem.Count) * ( INVENTORY_ITEM_SIZE + INVENTORY_ITEM_SPACING ) )
+	INVENTORY_TOP_POSITION :: 160 - 16 + 4
+	DrawInventory( INVENTORY_LEFT_OFFSET, INVENTORY_TOP_POSITION, &player.inventory )
 }
 
 MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> EntityTemplate {
@@ -296,17 +302,28 @@ SwordAltarSprite := AnimatedSprite {
 	ImageKey.sword_altar, 5, 7, 0,
 	{
 		AnimationFrame{ 0, 0, nil },
-		AnimationFrame{ 0, 6, nil },
+		AnimationFrame{ 0, 5, nil },
+	},
+}
+SwordAltarContainer := Container {
+	proc "contextless" () {
+		altar := GetEntityByName( EntityName.SwordAltar )
+		altar.flags -= {.Interactible}
+		AnimatedSprite_NextFrame( &altar.animated_sprite )
+		player := GetEntityByName( EntityName.Player )
+		player.inventory.items[InventoryItem.Sword] = true
 	},
 }
 MakeSwordAltarEntity :: proc "contextless" () -> EntityTemplate {
 	ent : EntityTemplate
 
 	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
+	ent.name = EntityName.SwordAltar
 	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
 	ent.animated_sprite.sprite = &SwordAltarSprite
 	ent.palette_mask = 0x0210
 	ent.collider = { { 0, 0 }, { 5, 7 } }
+	ent.interaction = &SwordAltarContainer
 
 	return ent
 }
@@ -559,6 +576,7 @@ update :: proc "c" () {
 	
 		DrawStatusUI()
 		Dialog_Update()
+		NewItemAnimation_Update()
 	
 		// GenerateDitherPattern(0,0)
 	}

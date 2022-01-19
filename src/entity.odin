@@ -22,6 +22,7 @@ EntityName :: enum u8 {
 	Player,
 	Miru,
 	Bat,
+	SwordAltar,
 }
 
 Entity :: struct {
@@ -46,6 +47,7 @@ Entity :: struct {
 	damage_flash_palette: u16, saved_palette : u16,
 	pushed_back_dist: ivec2, // when receiving damage, push entity over an amount of frames
 	pushed_back_cached_pos: ivec2,
+	inventory: Inventory, // player inventory
 }
 EntityTemplate :: distinct Entity // compression ?
 

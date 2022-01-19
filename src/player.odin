@@ -162,35 +162,42 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		if s_gglob.game_state == GameState.Game {
 			interaction_rect := GetWorldSpaceCollider( entity )
 			interaction_rect = translate_rect( interaction_rect, looking_dir * {HALF_PLAYER_W, HALF_PLAYER_H} )
-	
+			
 			ent := GetFirstEntityInside( entity, interaction_rect )
 			if .Interactible in ent.flags {
-				#partial switch interaction in ent.interaction {
+				switch interaction in ent.interaction {
 					case ^DialogDef: Dialog_Start( interaction )
+					case ^Container:
+						interaction.on_open()
 				}
 			} else { // perform inventory object use
-
-				// swing sword action
-				entity.swinging_sword = 1
-				entity.flags += { .DamageMaker }
-				if looking_dir.x < 0 {
-					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
-					entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
-				} else if looking_dir.x > 0 {
-					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
-					entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
-				} else if looking_dir.y > 0 {
-					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Front
-					entity.hurt_box = { { 0, 6 }, { 7, 10 } }
-				} else if looking_dir.y < 0 {
-					entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Back
-					entity.hurt_box = { { 0, -2 }, { 7, 2 } }
+				if entity.inventory.items[InventoryItem.Sword] && entity.inventory.current_item == u8(InventoryItem.Sword) {
+					// swing sword action
+					entity.swinging_sword = 1
+					entity.flags += { .DamageMaker }
+					if looking_dir.x < 0 {
+						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
+						entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
+					} else if looking_dir.x > 0 {
+						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
+						entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
+					} else if looking_dir.y > 0 {
+						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Front
+						entity.hurt_box = { { 0, 6 }, { 7, 10 } }
+					} else if looking_dir.y < 0 {
+						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Back
+						entity.hurt_box = { { 0, -2 }, { 7, 2 } }
+					}
+					entity.animated_sprite.current_frame = 0
 				}
-				entity.animated_sprite.current_frame = 0
+				when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
 			}
-			when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
 		}
-	} 
+	}
+
+	if s_gglob.input_state.BPressed {
+		SelectNextItem( &entity.inventory )
+	}
 
 	if entity.swinging_sword > 0 {
 		// if we release wait that we at least have done a full swing
@@ -249,5 +256,10 @@ MakePlayer :: proc "contextless" () -> ^Entity {
 	player.collider = { { 0, 0 }, { 8, 8 } }
 	player.damage_flash_palette = 0x0012
 	player.palette_mask = 0x0021
+
+	player.inventory.items[InventoryItem.Sword] = false
+	player.inventory.items[InventoryItem.Torch] = false
+	SelectNextItem( &player.inventory )
+
 	return player
 }
