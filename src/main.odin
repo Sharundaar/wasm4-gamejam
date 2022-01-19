@@ -6,8 +6,8 @@ USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: true
-START_WITH_SWORD :: true
+SKIP_INTRO :: false
+START_WITH_SWORD :: false
 
 import "w4"
 import "core:math"
@@ -208,8 +208,8 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 	}
 }
 
-GenerateDitherPattern :: proc "contextless" ( w, h: i32 ) {
-	DW, DH :: 160, 128+16
+DrawDitherPattern :: proc "contextless" () {
+	DW, DH :: 160, 144
 	texture : [(DW/8)*DH]u8
 	
 	w4.DRAW_COLORS^ = 0x0004
@@ -346,12 +346,12 @@ SwordAltarSprite := AnimatedSprite {
 	},
 }
 SwordAltarContainer := Container {
-	proc "contextless" () {
-		altar := GetEntityByName( EntityName.SwordAltar )
+	proc "contextless" ( altar: ^Entity ) {
 		altar.flags -= {.Interactible}
 		AnimatedSprite_NextFrame( &altar.animated_sprite )
 		player := GetEntityByName( EntityName.Player )
 		Inventory_GiveNewItem( player, InventoryItem.Sword )
+		Quest_Complete( .GotSword )
 	},
 }
 MakeSwordAltarEntity :: proc "contextless" () -> ^Entity {
@@ -412,8 +412,50 @@ ents_c10 :: proc "contextless" () {
 	}
 }
 
+TorchChestContainer := Container {
+	proc "contextless" ( chest: ^Entity ) {
+		chest.flags -= {.Interactible}
+		AnimatedSprite_NextFrame( &chest.animated_sprite )
+		player := GetEntityByName( .Player )
+		Inventory_GiveNewItem( player, .Torch)
+		Quest_Complete( .GotTorch )
+	},
+}
+
 ents_c11 :: proc "contextless" () {
-	MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) )
+	torch_chest := MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) )
+	if Quest_IsComplete( .GotTorch ) {
+		AnimatedSprite_NextFrame( &torch_chest.animated_sprite )
+	} else {
+		torch_chest.flags += {.Interactible}
+		torch_chest.interaction = &TorchChestContainer
+	}
+
+
+	lights[1].enabled = true
+	lights[1].pos = GetTileWorldCoordinateMidPoint( 4, 0 )
+	lights[1].s = 4
+	lights[1].r = 0.125
+
+	lights[2].enabled = true
+	lights[2].pos = GetTileWorldCoordinate( 1, 1 )
+	lights[2].s = 4
+	lights[2].r = 0.125
+
+	lights[3].enabled = true
+	lights[3].pos = GetTileWorldCoordinateMidPoint( 1, 5 )
+	lights[3].s = 4
+	lights[3].r = 0.125
+	
+	lights[4].enabled = true
+	lights[4].pos = GetTileWorldCoordinate( 7, 5 )
+	lights[4].s = 4
+	lights[4].r = 0.125
+
+	lights[5].enabled = true
+	lights[5].pos = GetTileWorldCoordinateMidPoint( 4, 7 )
+	lights[5].s = 4
+	lights[5].r = 0.125
 }
 
 ChestSprite := AnimatedSprite {
@@ -489,6 +531,7 @@ MakeWorldMap :: proc "contextless" () {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].populate_function = ents_c11
+	tilemap.chunks[1+TILE_CHUNK_COUNT_W].enable_darkness = true
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
@@ -539,16 +582,6 @@ start :: proc "c" () {
 	} else {
 		MakeWorldMap()
 	}
-
-	lights[0].enabled = true
-	lights[0].r = 0.125
-	lights[0].s = 4.0
-
-	lights[1].enabled = false
-	lights[1].pos.x = 64
-	lights[1].pos.y = 24
-	lights[1].r = 0.125
-	lights[1].s = 1.0
 
 	when SKIP_INTRO {
 		game_state = GameState.Game
@@ -628,7 +661,7 @@ update :: proc "c" () {
 		w4.DRAW_COLORS^ = 0x2341
 		title_screen := GetImage( ImageKey.title_screen )
 		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
-		if s_gglob.input_state.APressed {
+		if s_gglob.input_state.APressed && !bool( s_gglob.fading_out ) {
 			StartFade( proc "contextless" () { s_gglob.game_state = GameState.Game } )
 			InitRand( s_gglob.global_frame_counter )
 		}
@@ -643,14 +676,19 @@ update :: proc "c" () {
 	
 		UpdateEntities()
 	
+		lights[0].enabled = Inventory_HasItemSelected( player, .Torch )
 		lights[0].pos = player.position.offsets
 		lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
+		lights[0].s = 3
 	
 		DrawStatusUI()
 		Dialog_Update()
 		NewItemAnimation_Update()
 	
-		// GenerateDitherPattern(0,0)
+		chunk := GetChunkFromChunkCoordinates( &tilemap, active_chunk_coords.x, active_chunk_coords.y )
+		if chunk.enable_darkness {
+			DrawDitherPattern()
+		}
 	}
 
 	UpdateFade()

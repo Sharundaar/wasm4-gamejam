@@ -19,6 +19,7 @@ TileChunk :: struct {
 	// indices into the map tiledef array
 	tiles: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H]u8,
 	populate_function: proc "contextless" (),
+	enable_darkness: bool,
 }
 
 chunk_tile_collider :: struct {
@@ -119,6 +120,12 @@ GetTileWorldCoordinate :: proc "contextless" ( x, y: i32 ) -> ivec2 {
 
 GetTileWorldCoordinate2 :: proc "contextless" ( x, y: i32 ) -> ( i32, i32 ) {
 	return x*TILE_SIZE, y*TILE_SIZE
+}
+
+GetTileWorldCoordinateMidPoint :: proc "contextless" ( x, y: i32 ) -> ( ivec2 ) {
+	pos := GetTileWorldCoordinate( x, y )
+	pos += { TILE_SIZE / 2, TILE_SIZE / 2 }
+	return pos
 }
 
 GetTileLocalCoordinate_XY :: proc "contextless" ( x, y: i32 ) -> ivec2 {

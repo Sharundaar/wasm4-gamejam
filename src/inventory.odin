@@ -35,6 +35,10 @@ Inventory_SelectNextItem :: proc "contextless" ( inventory: ^Inventory ) {
 	}
 }
 
+Inventory_SelectItem :: proc "contextless" ( inventory: ^Inventory, item: InventoryItem ) {
+	if inventory.items[item] do inventory.current_item = u8( item )
+}
+
 DrawInventory :: proc "contextless" ( start_x, start_y: i32, inventory: ^Inventory ) {
 	x, y := start_x, start_y
 
@@ -73,6 +77,10 @@ Inventory_HasItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem )
 	return bool( entity.inventory.items[item] )
 }
 
+Inventory_HasItemSelected :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) -> bool {
+	return bool( entity.inventory.items[item] ) && entity.inventory.current_item == u8( item )
+}
+
 NewItemAnimation_Update :: proc "contextless" () {
 	if s_gglob.game_state != GameState.NewItemAnimation do return
 
@@ -91,6 +99,7 @@ NewItemAnimation_Update :: proc "contextless" () {
 	if s_gglob.new_item_animation_counter > ANIMATION_DURATION {
 		s_gglob.game_state = GameState.Game
 		Inventory_GiveNewItem_Immediate( s_gglob.new_item_entity_target, s_gglob.new_item )
+		Inventory_SelectItem( &s_gglob.new_item_entity_target.inventory, s_gglob.new_item )
 	}
 
 	s_gglob.new_item_animation_counter += 1
