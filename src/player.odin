@@ -196,7 +196,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	}
 
 	if s_gglob.input_state.BPressed {
-		SelectNextItem( &entity.inventory )
+		Inventory_SelectNextItem( &entity.inventory )
 	}
 
 	if entity.swinging_sword > 0 {
@@ -257,9 +257,11 @@ MakePlayer :: proc "contextless" () -> ^Entity {
 	player.damage_flash_palette = 0x0012
 	player.palette_mask = 0x0021
 
-	player.inventory.items[InventoryItem.Sword] = true when START_WITH_SWORD else false
-	player.inventory.items[InventoryItem.Torch] = false
-	SelectNextItem( &player.inventory )
+	when START_WITH_SWORD {
+		Quest_Complete( .GotSword )
+		Inventory_GiveNewItem_Immediate( player, .Sword )
+	}
+	Inventory_SelectNextItem( &player.inventory )
 
 	return player
 }

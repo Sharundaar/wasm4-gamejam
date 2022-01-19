@@ -27,7 +27,7 @@ Inventory :: struct {
 	current_item: u8,
 }
 
-SelectNextItem :: proc "contextless" ( inventory: ^Inventory ) {
+Inventory_SelectNextItem :: proc "contextless" ( inventory: ^Inventory ) {
 	starting_point := inventory.current_item
 	for {
 		inventory.current_item = (inventory.current_item + 1) % u8(len(inventory.items))
@@ -58,11 +58,19 @@ DrawInventory :: proc "contextless" ( start_x, start_y: i32, inventory: ^Invento
 	}
 }
 
-GiveNewItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) {
+Inventory_GiveNewItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) {
 	s_gglob.game_state = GameState.NewItemAnimation
 	s_gglob.new_item = item
 	s_gglob.new_item_animation_counter = 0
 	s_gglob.new_item_entity_target = entity
+}
+
+Inventory_GiveNewItem_Immediate :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) {
+	entity.inventory.items[item] = true
+}
+
+Inventory_HasItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) -> bool {
+	return bool( entity.inventory.items[item] )
 }
 
 NewItemAnimation_Update :: proc "contextless" () {
@@ -82,7 +90,7 @@ NewItemAnimation_Update :: proc "contextless" () {
 
 	if s_gglob.new_item_animation_counter > ANIMATION_DURATION {
 		s_gglob.game_state = GameState.Game
-		s_gglob.new_item_entity_target.inventory.items[s_gglob.new_item] = true
+		Inventory_GiveNewItem_Immediate( s_gglob.new_item_entity_target, s_gglob.new_item )
 	}
 
 	s_gglob.new_item_animation_counter += 1

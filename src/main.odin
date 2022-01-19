@@ -78,6 +78,7 @@ GameGlob :: struct {
 	new_item_animation_counter : u16,
 	new_item : InventoryItem,
 	new_item_entity_target : ^Entity,
+	quest_data: QuestData,
 }
 s_gglob : GameGlob
 
@@ -340,7 +341,7 @@ SwordAltarContainer := Container {
 		altar.flags -= {.Interactible}
 		AnimatedSprite_NextFrame( &altar.animated_sprite )
 		player := GetEntityByName( EntityName.Player )
-		GiveNewItem( player, InventoryItem.Sword )
+		Inventory_GiveNewItem( player, InventoryItem.Sword )
 		// player.inventory.items[InventoryItem.Sword] = true
 	},
 }
@@ -354,6 +355,15 @@ MakeSwordAltarEntity :: proc "contextless" () -> ^Entity {
 	ent.palette_mask = 0x0210
 	ent.collider = { { 0, 0 }, { 5, 7 } }
 	ent.interaction = &SwordAltarContainer
+
+	if Quest_IsComplete( .GotSword ) {
+		player := GetEntityByName( .Player )
+		if player != nil && !Inventory_HasItem( player, .Sword ) {
+			Inventory_GiveNewItem_Immediate( player, .Sword )
+		}
+		ent.flags -= {.Interactible}
+		AnimatedSprite_NextFrame( &ent.animated_sprite )
+	}
 
 	return ent
 }
