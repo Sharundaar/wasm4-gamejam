@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "type": "windbg",
+            "request": "launch",
+            "name": "Launch Program",
+            "target": "${workspaceRoot}/build/map_editor.exe",
+            "workingDir": "${workspaceRoot}/build"
+        }
+    ]
+
+}
