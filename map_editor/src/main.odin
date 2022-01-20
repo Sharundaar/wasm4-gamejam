@@ -115,10 +115,13 @@ Camera_ComputeViewMatrix :: proc( camera: ^Camera ) -> mat4 {
 LoadTilemap :: proc( input: string = "map.txt") {
     content, success := os.read_entire_file( input )
     if success {
+        fmt.println( "Successfully read", input )
         for b, i in content {
             if b == '\n' || b == '\r' do break
             tilemap.tiles[i] = u8( b - '0' )
         }
+    } else {
+        fmt.println( "Failed to read", input )
     }
 }
 
@@ -144,11 +147,11 @@ ExportTilemap :: proc ( output : string = "../../src/tilemap_export.odin" ) {
                     strings.write_string( &builder, ", " )
                 }
             }
-            strings.write_string( &builder, "}, nil, false },\n" )
+            strings.write_string( &builder, "}, nil },\n" )
         }
     }
     strings.write_string( &builder, "}\n" )
-    os.write_entire_file( "../../src/tilemap_export.odin", transmute( []u8 )( strings.to_string( builder ) ) )
+    os.write_entire_file( output, transmute( []u8 )( strings.to_string( builder ) ) )
 }
 
 DrawGrid :: proc() {
@@ -182,7 +185,7 @@ main :: proc() {
             }
             k += 1
         }
-
+        fmt.println( input, output )
         LoadTilemap( input )
         ExportTilemap( output )
         return
