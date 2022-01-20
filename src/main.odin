@@ -483,11 +483,11 @@ MakeWorldMap :: proc "contextless" () {
 	using s_gglob
 
 	tilemap.chunks = tilemap_chunks[:]
-	tilemap.chunks[0].populate_function = ents_c00
-	tilemap.chunks[1].populate_function = ents_c01
-	tilemap.chunks[0+TILE_CHUNK_COUNT_W].populate_function = ents_c10
-	tilemap.chunks[1+TILE_CHUNK_COUNT_W].populate_function = ents_c11
-	tilemap.chunks[1+TILE_CHUNK_COUNT_W].enable_darkness = true
+	GetChunkFromChunkCoordinates( &tilemap, 0, 0 ).populate_function = ents_c00
+	GetChunkFromChunkCoordinates( &tilemap, 1, 0 ).populate_function = ents_c01
+	GetChunkFromChunkCoordinates( &tilemap, 0, 1 ).populate_function = ents_c10
+	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).populate_function = ents_c11
+	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).enable_darkness = true
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
