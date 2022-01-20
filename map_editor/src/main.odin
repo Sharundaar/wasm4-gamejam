@@ -37,6 +37,7 @@ tiledefs := []TileDefinition {
     { color_from_str( "#AA2323" ) },
     { color_from_str( "#2323AA" ) },
     { color_from_str( "#23AA23" ) },
+    { color_from_str( "#FF7777" ) },
 }
 tilemap := TileMap{ {}, tiledefs }
 camera  : Camera
@@ -71,7 +72,7 @@ Camera :: struct {
 G_InitCamera :: proc() -> Camera {
     camera : Camera
 
-    camera.height = f32(TILE_SIZE * TILE_CHUNK_COUNT_H)
+    camera.height = f32(TILE_SIZE * TILE_CHUNK_COUNT_H *1.25)
     camera.width = R_WinAspectRatio() * camera.height
     camera.center = { camera.width / 2, camera.height / 2 }
 
@@ -258,6 +259,9 @@ main :: proc() {
                     def := tilemap.tiles[i32(mouse_tile_pos.y) * TILE_TOTAL_W + i32(mouse_tile_pos.x)]
                     if IN_IsKeyDown( InputKey.MOUSE1 ) {
                         tilemap.tiles[i32(mouse_tile_pos.y) * TILE_TOTAL_W + i32(mouse_tile_pos.x)] = u8(selected_tiledef)
+                    }
+                    if IN_IsKeyPressed( InputKey.MOUSE2 ) {
+                        selected_tiledef = int(def)
                     }
                     current_color := tiledefs[def].color
                     wanted_color := tiledefs[selected_tiledef].color

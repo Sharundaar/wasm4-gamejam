@@ -11,6 +11,17 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "build map editor",
+            "type": "shell",
+            "command": "build.bat",
+            "windows": {
+                "options": {
+                    "cwd": ".\\map_editor"
+                }
+            },
+            "problemMatcher": []
         }
     ]
 }

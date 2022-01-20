@@ -38,7 +38,7 @@ SetupGLAttributes :: proc() {
 
 R_CreateWindow :: proc( width, height: i32 ) {
     flags := SDL.WINDOW_SHOWN | SDL.WINDOW_OPENGL | SDL.WINDOW_RESIZABLE
-    rglob.window = SDL.CreateWindow( "Engine", 
+    rglob.window = SDL.CreateWindow( "Map Editor", 
                                         SDL.WINDOWPOS_UNDEFINED, SDL.WINDOWPOS_UNDEFINED,
                                         width, height,
                                         flags )
