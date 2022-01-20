@@ -6,8 +6,8 @@ USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: false
-START_WITH_SWORD :: false
+SKIP_INTRO :: true
+START_WITH_SWORD :: true
 
 import "w4"
 import "core:math"
@@ -482,56 +482,10 @@ MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
 MakeWorldMap :: proc "contextless" () {
 	using s_gglob
 
-	tilemap.chunks[0].tiles = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-	}
+	tilemap.chunks = tilemap_chunks[:]
 	tilemap.chunks[0].populate_function = ents_c00
-
-	tilemap.chunks[1].tiles = {
-		0, 0, 0, 0, 0, 0, 0, 3, 0, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-	}
 	tilemap.chunks[1].populate_function = ents_c01
-
-	tilemap.chunks[0+TILE_CHUNK_COUNT_W].tiles = {
-		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	}
 	tilemap.chunks[0+TILE_CHUNK_COUNT_W].populate_function = ents_c10
-
-	tilemap.chunks[1+TILE_CHUNK_COUNT_W].tiles = {
-		0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 0, 1, 1, 1, 0,
-		0, 1, 0, 0, 0, 0, 1, 0, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 0, 1, 0,
-		0, 1, 0, 0, 0, 0, 0, 0, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 0, 1, 0,
-		0, 1, 0, 0, 0, 0, 1, 0, 1, 0,
-		0, 1, 1, 0, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	}
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].populate_function = ents_c11
 	tilemap.chunks[1+TILE_CHUNK_COUNT_W].enable_darkness = true
 

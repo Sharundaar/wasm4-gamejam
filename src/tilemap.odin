@@ -15,7 +15,7 @@ TileDefinition :: struct {
 	solid: bool,
 }
 
-TileChunk :: struct {
+TileChunk :: struct #packed {
 	// indices into the map tiledef array
 	tiles: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H]u8,
 	populate_function: proc "contextless" (),
@@ -27,8 +27,8 @@ chunk_tile_collider :: struct {
 	has_collider: b8,
 }
 
-TileMap :: struct {
-	chunks: [TILEMAP_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_H]TileChunk,
+TileMap :: struct #packed {
+	chunks: []TileChunk,
 	tileset: ^Image,
 	tiledef: []TileDefinition,
 	active_chunk_colliders: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H] chunk_tile_collider,
@@ -45,7 +45,9 @@ ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: iv
 	}
 	// create entities linked to this chunk
 	active_chunk := GetChunkFromChunkCoordinates( tilemap, active_chunk_coords.x, active_chunk_coords.y )
-	active_chunk.populate_function()
+	if active_chunk.populate_function != nil {
+		active_chunk.populate_function()
+	}
 	for ent in &s_EntityPool {
 		if .InUse not_in ent.flags do continue
 		ent.position.chunk = active_chunk_coords
