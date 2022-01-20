@@ -168,7 +168,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				switch interaction in ent.interaction {
 					case ^DialogDef: Dialog_Start( interaction )
 					case ^Container:
-						interaction.on_open( ent )
+						interaction.on_open( ent.id )
 				}
 			} else { // perform inventory object use
 				if entity.inventory.items[InventoryItem.Sword] && entity.inventory.current_item == u8(InventoryItem.Sword) {

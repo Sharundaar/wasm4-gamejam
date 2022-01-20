@@ -346,7 +346,8 @@ SwordAltarSprite := AnimatedSprite {
 	},
 }
 SwordAltarContainer := Container {
-	proc "contextless" ( altar: ^Entity ) {
+	proc "contextless" ( ent_id: u8 ) {
+		altar := GetEntityById( ent_id )
 		altar.flags -= {.Interactible}
 		AnimatedSprite_NextFrame( &altar.animated_sprite )
 		player := GetEntityByName( EntityName.Player )
@@ -413,7 +414,8 @@ ents_c10 :: proc "contextless" () {
 }
 
 TorchChestContainer := Container {
-	proc "contextless" ( chest: ^Entity ) {
+	proc "contextless" ( ent_id: u8 ) {
+		chest := GetEntityById( ent_id )
 		chest.flags -= {.Interactible}
 		AnimatedSprite_NextFrame( &chest.animated_sprite )
 		player := GetEntityByName( .Player )
@@ -561,6 +563,8 @@ MakeTestMap :: proc "contextless" () {
 @export
 start :: proc "c" () {
 	using s_gglob
+
+	print_int( size_of( Entity ) )
 
 	(w4.PALETTE^)[0] = 0xdad3af
 	(w4.PALETTE^)[1] = 0xd58863

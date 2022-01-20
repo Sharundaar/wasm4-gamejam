@@ -126,6 +126,13 @@ GetEntityByName :: proc "contextless" ( name: EntityName ) -> ^Entity {
 	return nil
 }
 
+GetEntityById :: proc "contextless" ( id: u8 ) -> ^Entity {
+	idx := id - 1
+	if idx > len(s_EntityPool) do return nil
+	ent := &s_EntityPool[idx]
+	if .InUse in ent.flags do return ent
+	return nil
+}
 
 UpdateAnimatedSprite :: proc "contextless" ( entity: ^Entity ) {
 	if .AnimatedSprite not_in entity.flags do return
