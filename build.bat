@@ -15,6 +15,8 @@ set imgs=img_src\key.png ^
 		 img_src\half_heart.png ^
 		 img_src\ui_items_icon.png
 w4 png2src --odin %imgs% -t img_src\template.txt -o src\images.odin
+echo build tilemap...
+map_editor\build\map_editor.exe -input "map_editor\build\map.txt" -export "src\tilemap_export.odin"
 echo build game...
 C:\Home\Odin\odin build src -out:build/cart.wasm -target:freestanding_wasm32 -disable-assert -no-crt -no-entry-point -o:size -extra-linker-flags:"--import-memory -zstack-size=8192 --initial-memory=65536 --max-memory=65536 --global-base=6560 --lto-O3 --gc-sections --strip-all"
 echo done
