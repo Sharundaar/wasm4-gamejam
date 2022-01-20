@@ -108,6 +108,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		center := entity.position.offsets + { HALF_PLAYER_W, HALF_PLAYER_H }
 		tile := GetTileDefForCoordinates( &s_gglob.tilemap, entity.position.chunk.x, entity.position.chunk.y, center.x, center.y )
 		if tile.collider_type == .Hole { // falling
+			entity.walking_sound_counter = 0
 			tile_pos := GetTileLocalCoordinate( center )
 			tile_midpoint := GetTileWorldCoordinateMidPoint( tile_pos.x, tile_pos.y )
 			dir = tile_midpoint - center
@@ -134,12 +135,27 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				if .DOWN in w4.GAMEPAD1^ {
 					dir.y += 1
 				}
+
+				if dir != {} {
+					entity.walking_sound_counter += 1
+				} else {
+					entity.walking_sound_counter = 0
+				}
 			}
 		}
 		
 		move := dir
 	
 		MoveEntity( entity, move )
+	}
+
+	if entity.walking_sound_counter > 0 {
+		if entity.walking_sound_counter == 15 {
+			w4.tone( 50, 1, 8, .Pulse2 )
+		} else if entity.walking_sound_counter >= 30 {
+			w4.tone( 75, 1, 8, .Pulse2 )
+			entity.walking_sound_counter = 0
+		}
 	}
 
 	moving := dir.x != 0 || dir.y != 0
@@ -172,6 +188,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		looking_dir = dir
 	}
 
+	// actions
 	if s_gglob.input_state.APressed {
 		if s_gglob.game_state == GameState.Game {
 			interaction_rect := GetWorldSpaceCollider( entity )
@@ -187,6 +204,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 			} else { // perform inventory object use
 				if entity.inventory.items[InventoryItem.Sword] && entity.inventory.current_item == u8(InventoryItem.Sword) {
 					// swing sword action
+					w4.tone( 490, 7, 5, .Noise )
 					entity.swinging_sword = 1
 					entity.flags += { .DamageMaker }
 					if looking_dir.x < 0 {

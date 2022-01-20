@@ -31,6 +31,8 @@ Dialog_Start :: proc "contextless" ( def: ^DialogDef ) {
     s_gglob.dialog_ui.current_dialog = def
     s_gglob.dialog_ui.state = DialogUIState.TransitionIn
     s_gglob.dialog_ui.current_block = 0
+
+    w4.tone_complex( 1, 120, {sustain=30}, 50, .Triangle )
 }
 
 Dialog_Update :: proc "contextless" () {
@@ -50,6 +52,7 @@ Dialog_Update :: proc "contextless" () {
                     current_block = last_block_idx
                     state = DialogUIState.TransitionOut
                 }
+                w4.tone( 1000, 2, 25, .Pulse1 )
             }
         case .TransitionIn:
             y_offs += transition_speed

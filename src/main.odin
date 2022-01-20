@@ -2,10 +2,10 @@ package main
 
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
-USE_TEST_MAP :: true
+USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
-SHOW_LAST_VALID_POSITION :: true
+SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
 START_WITH_SWORD :: true

@@ -52,6 +52,7 @@ Entity :: struct {
 	picked_point: ivec2, // picked point by bat brains to go to
 	picked_point_counter: u8, // timer to wait before picking a new point after reaching destination
 	falling_frame_counter: u8,
+	walking_sound_counter: u8,
 
 	on_death: proc "contextless" (), // function call when hp fall to 0
 }
@@ -198,8 +199,19 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	DAMAGE_ANIMATION_LENGTH :: 24
 	if entity.received_damage == 255 {
 		entity.received_damage = 1
+		if entity.name == EntityName.Player {
+			w4.tone( 2700, 3, 25, .Triangle )
+		} else {
+			w4.tone( 100, 2, 25, .Pulse1 )
+		}
 	} else {
 		entity.received_damage += 1
+	}
+
+	if entity.received_damage == 4 {
+		if entity.name == EntityName.Player {
+			w4.tone( 1200, 3, 25, .Triangle )
+		}
 	}
 
 	DAMAGE_PUSH_BACK_LENGTH :: 16
