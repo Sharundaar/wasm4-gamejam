@@ -51,6 +51,7 @@ Entity :: struct {
 	
 	picked_point: ivec2, // picked point by bat brains to go to
 	picked_point_counter: u8, // timer to wait before picking a new point after reaching destination
+	falling_frame_counter: u8,
 
 	on_death: proc "contextless" (), // function call when hp fall to 0
 }
@@ -171,9 +172,11 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 	}
 }
 
-InflictDamage :: proc "contextless" ( receiver: ^Entity ) -> bool {
+InflictDamage :: proc "contextless" ( receiver: ^Entity, force_damage := false ) -> bool {
 	INVULNERABILITY_TIME :: 10 // invulnerable for 10 frames after receiving damage
-	if receiver.received_damage == 255 || (receiver.received_damage > 0 && receiver.received_damage <= INVULNERABILITY_TIME) do return false
+	if !force_damage {
+		if receiver.received_damage == 255 || (receiver.received_damage > 0 && receiver.received_damage <= INVULNERABILITY_TIME) do return false
+	}
 
 	receiver.received_damage = 255 // set at 255 so damage receiver module can start animation and stuff
 	receiver.health_points -= 1
@@ -344,7 +347,7 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) {
 				if x < 0 || x >= TILE_CHUNK_COUNT_W do continue
 				if y < 0 || y >= TILE_CHUNK_COUNT_H do continue
 				c := s_gglob.tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x]
-				if !c.has_collider do continue
+				if c.collider_type != .Solid do continue
 				if C_TestAABB( broadphasebox, c.collider ) {
 					t, n := SweepAABB( collider, move, c.collider )
 					if t == 1 do continue
@@ -407,6 +410,7 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) {
 		entity.position = RegularizeCoordinate( entity.position )
 
 		if regularized {
+			s_gglob.last_valid_player_position = entity.position.offsets
 			entity.pushed_back_cached_pos = entity.position.offsets
 		}
 	} else {

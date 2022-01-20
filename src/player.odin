@@ -105,56 +105,70 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	dir : ivec2 = { 0, 0 }
 	if s_gglob.game_state == GameState.Game {
-		if received_damage > 0 {
-			// dir.x = pushed_back_direction.x
-		} else {
-			if .LEFT in w4.GAMEPAD1^ {
-				dir.x -= 1
+		center := entity.position.offsets + { HALF_PLAYER_W, HALF_PLAYER_H }
+		tile := GetTileDefForCoordinates( &s_gglob.tilemap, entity.position.chunk.x, entity.position.chunk.y, center.x, center.y )
+		if tile.collider_type == .Hole { // falling
+			tile_pos := GetTileLocalCoordinate( center )
+			tile_midpoint := GetTileWorldCoordinateMidPoint( tile_pos.x, tile_pos.y )
+			dir = tile_midpoint - center
+			if dir.x < 0 do dir.x = -1
+			if dir.y < 0 do dir.y = -1
+			if dir.x > 0 do dir.x =  1
+			if dir.y > 0 do dir.y =  1
+			if dir == { 0, 0 } { // reached middle
+				entity.falling_frame_counter += 1
+			} else {
+				entity.falling_frame_counter = 1
 			}
-			if .RIGHT in w4.GAMEPAD1^ {
-				dir.x += 1
+		} else {
+			if received_damage == 0 { // damage received means pushed_back so no movement here
+				if .LEFT in w4.GAMEPAD1^ {
+					dir.x -= 1
+				}
+				if .RIGHT in w4.GAMEPAD1^ {
+					dir.x += 1
+				}
+				if .UP in w4.GAMEPAD1^ {
+					dir.y -= 1
+				}
+				if .DOWN in w4.GAMEPAD1^ {
+					dir.y += 1
+				}
 			}
 		}
-
-		if received_damage > 0 {
-			// dir.y = pushed_back_direction.y
-		} else {
-			if .UP in w4.GAMEPAD1^ {
-				dir.y -= 1
-			}
-			if .DOWN in w4.GAMEPAD1^ {
-				dir.y += 1
-			}
-		}
+		
 		move := dir
 	
 		MoveEntity( entity, move )
-	
-		{ // trigger smooth transition ?
-			if position.offsets.x + PLAYER_W >= TILE_CHUNK_COUNT_W * TILE_SIZE {
-				position.offsets.x = 0
-				position.chunk.x += 1
-			}
-			if position.offsets.y + PLAYER_H >= TILE_CHUNK_COUNT_H * TILE_SIZE {
-				position.offsets.y = 0
-				position.chunk.y += 1
-			}
-			if position.offsets.x < 0 {
-				position.offsets.x = TILE_CHUNK_COUNT_W * TILE_SIZE - PLAYER_W
-				position.chunk.x -= 1
-			}
-			if position.offsets.y < 0 {
-				position.offsets.y = TILE_CHUNK_COUNT_H * TILE_SIZE - PLAYER_H
-				position.chunk.y -= 1
-			}
-		}
-
-		// shouldn't be necessary but for safety
-		position = RegularizeCoordinate( position )
 	}
 
 	moving := dir.x != 0 || dir.y != 0
-	if moving && swinging_sword == 0 && received_damage == 0 { // lock looking dir when swinging sword
+	if entity.falling_frame_counter > 0 { // when falling, still move where you look
+		new_looking_dir : ivec2
+		if .LEFT in w4.GAMEPAD1^ {
+			new_looking_dir.x -= 1
+		}
+		if .RIGHT in w4.GAMEPAD1^ {
+			new_looking_dir.x += 1
+		}
+		if .UP in w4.GAMEPAD1^ {
+			new_looking_dir.y -= 1
+		}
+		if .DOWN in w4.GAMEPAD1^ {
+			new_looking_dir.y += 1
+		}
+		if new_looking_dir != { 0, 0 } {
+			looking_dir = new_looking_dir
+		}
+		// falling animation ?
+		if entity.falling_frame_counter > 60 {
+			entity.position.offsets = s_gglob.last_valid_player_position
+			entity.pushed_back_cached_pos = entity.position.offsets
+			entity.pushed_back_dist = {}
+			entity.falling_frame_counter = 0
+			InflictDamage( entity, true )
+		}
+	} else if moving && swinging_sword == 0 && received_damage == 0 { // lock looking dir when swinging sword
 		looking_dir = dir
 	}
 

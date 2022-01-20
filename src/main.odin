@@ -2,9 +2,10 @@ package main
 
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
-USE_TEST_MAP :: false
+USE_TEST_MAP :: true
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
+SHOW_LAST_VALID_POSITION :: true
 SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
 START_WITH_SWORD :: true
@@ -80,6 +81,7 @@ GameGlob :: struct {
 	new_item_entity_target : ^Entity,
 	quest_data: QuestData,
 	darkness_enabled: bool,
+	last_valid_player_position : ivec2,
 }
 s_gglob : GameGlob
 
@@ -137,10 +139,10 @@ Light :: struct {
 lights : [8]Light
 
 tiledef := []TileDefinition{
-	{ { 16, 0 }, true }, // wall
-	{ { 16*2, 0 }, false }, // floor
-	{ { 0, 16 }, true }, // light from outside
-	{ { 16, 16 }, true }, // door
+	{ { 16, 0 }, .Solid }, // wall
+	{ { 16*2, 0 }, .None }, // floor
+	{ { 0, 16 }, .Hole }, // hole
+	{ { 16, 16 }, .Solid }, // door
 }
 
 BatAnimation := AnimatedSprite {
@@ -614,27 +616,6 @@ MakeWorldMap :: proc "contextless" () {
 	tilemap.tiledef = tiledef
 }
 
-when USE_TEST_MAP {
-
-MakeTestMap :: proc "contextless" () {
-	using s_gglob
-	tilemap.chunks[0].tiles = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
-		0, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-		0, 1, 1, 1, 1, 0, 0, 0, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	}
-	tilemap.tileset = GetImage( ImageKey.tileset )
-	tilemap.tiledef = tiledef
-}
-
-}
-
 @export
 start :: proc "c" () {
 	using s_gglob
@@ -656,14 +637,11 @@ start :: proc "c" () {
 			player.position.chunk = { 2, 5 }
 			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 		}
+		s_gglob.last_valid_player_position = player.position.offsets
 	}
 	active_chunk_coords = { -1, -1 }
 
-	when USE_TEST_MAP {
-		MakeTestMap()
-	} else {
-		MakeWorldMap()
-	}
+	MakeWorldMap()
 
 	when SKIP_INTRO {
 		game_state = GameState.Game
@@ -766,7 +744,11 @@ update :: proc "c" () {
 		DrawStatusUI()
 		Dialog_Update()
 		NewItemAnimation_Update()
-	
+
+		when SHOW_LAST_VALID_POSITION {
+			DrawRect( { s_gglob.last_valid_player_position + { 2, 2 }, s_gglob.last_valid_player_position + { 6, 6 } } )
+		}
+
 		chunk := GetChunkFromChunkCoordinates( &tilemap, active_chunk_coords.x, active_chunk_coords.y )
 		if s_gglob.darkness_enabled {
 			DrawDitherPattern()

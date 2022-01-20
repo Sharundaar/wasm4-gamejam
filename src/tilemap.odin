@@ -10,9 +10,15 @@ TILEMAP_CHUNK_COUNT_H : i32 : 10
 TILEMAP_CHUNK_W :: TILE_SIZE * TILE_CHUNK_COUNT_W
 TILEMAP_CHUNK_H :: TILE_SIZE * TILE_CHUNK_COUNT_H
 
+TileColliderType :: enum u8 {
+	None,
+	Solid,
+	Hole,
+}
+
 TileDefinition :: struct {
 	offsets: ivec2, // offsets in the source texture
-	solid: bool,
+	collider_type: TileColliderType,
 }
 
 TileChunk :: struct #packed {
@@ -23,7 +29,7 @@ TileChunk :: struct #packed {
 
 chunk_tile_collider :: struct {
 	collider: rect,
-	has_collider: b8,
+	collider_type: TileColliderType,
 }
 
 TileMap :: struct #packed {
@@ -59,13 +65,9 @@ ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: iv
 	// update colliders
 	for tile, i in active_chunk.tiles {
 		def := tilemap.tiledef[tile]
-		if def.solid {
-			x, y := i32(i) % TILE_CHUNK_COUNT_W, i32(i) / TILE_CHUNK_COUNT_W
-			tilemap.active_chunk_colliders[i].collider = rect{ {x * TILE_SIZE, y * TILE_SIZE}, {x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE} }
-			tilemap.active_chunk_colliders[i].has_collider = true
-		} else {
-			tilemap.active_chunk_colliders[i].has_collider = false
-		}
+		x, y := i32(i) % TILE_CHUNK_COUNT_W, i32(i) / TILE_CHUNK_COUNT_W
+		tilemap.active_chunk_colliders[i].collider = rect{ {x * TILE_SIZE, y * TILE_SIZE}, {x * TILE_SIZE + TILE_SIZE, y * TILE_SIZE + TILE_SIZE} }
+		tilemap.active_chunk_colliders[i].collider_type = def.collider_type
 	}
 }
 
@@ -97,6 +99,11 @@ GetTileLocalCoordinate :: proc {
 	GetTileLocalCoordinate_Vec,
 }
 
+GetTileDefForCoordinates :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x, y: i32 ) -> TileDefinition {
+	coords := GetTileLocalCoordinate( x, y )
+	return tilemap.tiledef[tilemap.chunks[chunk_y * TILEMAP_CHUNK_COUNT_W + chunk_x].tiles[coords.y * TILE_CHUNK_COUNT_W + coords.x]]
+}
+
 GetChunkFromChunkCoordinates :: proc "contextless" ( tilemap: ^TileMap, x, y: i32 ) -> ^TileChunk {
 	if x < 0 || y < 0 || x >= TILEMAP_CHUNK_COUNT_W || y >= TILEMAP_CHUNK_COUNT_H do return nil
 	return &tilemap.chunks[y*TILEMAP_CHUNK_COUNT_W + x];
@@ -114,11 +121,6 @@ UpdateTileInChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y: i
 	tilemap.chunks[chunk_y * TILEMAP_CHUNK_COUNT_W + chunk_x].tiles[tileIdx] = newDef
 	if s_gglob.active_chunk_coords == { chunk_x, chunk_y } {
 		def := tilemap.tiledef[newDef]
-		if def.solid {
-			tilemap.active_chunk_colliders[tileIdx].collider = rect{ {tile_x * TILE_SIZE, tile_y * TILE_SIZE}, {tile_x * TILE_SIZE + TILE_SIZE, tile_y * TILE_SIZE + TILE_SIZE} }
-			tilemap.active_chunk_colliders[tileIdx].has_collider = true
-		} else {
-			tilemap.active_chunk_colliders[tileIdx].has_collider = false
-		}
+		tilemap.active_chunk_colliders[tileIdx].collider_type = def.collider_type
 	}
 }
