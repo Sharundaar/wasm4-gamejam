@@ -4,6 +4,7 @@ import "w4"
 DialogDef :: struct {
     author: string,
     blocks: [][2]string, // line1 line2
+    on_dialog_complete : proc "contextless" (),
 }
 
 DialogUIState :: enum u8 {
@@ -93,6 +94,11 @@ Dialog_End :: proc "contextless" () {
     if s_gglob.game_state != GameState.Dialog do return
 
     s_gglob.game_state = GameState.Game
+
+    if s_gglob.dialog_ui.current_dialog.on_dialog_complete != nil {
+        s_gglob.dialog_ui.current_dialog.on_dialog_complete()
+    }
+
     s_gglob.dialog_ui.current_dialog = nil
     s_gglob.dialog_ui.state = DialogUIState.None
 }

@@ -79,6 +79,7 @@ GameGlob :: struct {
 	new_item : InventoryItem,
 	new_item_entity_target : ^Entity,
 	quest_data: QuestData,
+	darkness_enabled: bool,
 }
 s_gglob : GameGlob
 
@@ -312,6 +313,7 @@ MirusDialog := DialogDef {
 		{ "Can you give", "me a hand ?" },
 		{ "Kill the bats", "south of here" },
 	},
+	nil,
 }
 MirusDialog_KilledBat := DialogDef {
 	"Miru",
@@ -319,7 +321,23 @@ MirusDialog_KilledBat := DialogDef {
 		{ "You did it!", "" },
 		{ "Thanks, here's", "a lil' something"},
 	},
+	proc "contextless" () {
+		if !Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+			Quest_Complete( .TalkedToMiruAfterBatDeath )
+			UpdateTileInChunk( &s_gglob.tilemap, 2, 5, 7, 1, 1 )
+		}
+	},
 }
+MirusDialog_InBatRoom := DialogDef {
+	"Miru",
+	{
+		{ "*sigh*", "" },
+		{ "Much better now", "that those dirty" },
+		{ "things are dead.", "Go away now." },
+	},
+	nil,
+}
+
 
 MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	ent := AllocateEntity( EntityName.Miru )
@@ -331,7 +349,9 @@ MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	ent.collider = { { 0, 0 }, { 16, 16 } }
 	ent.palette_mask = 0x0210
 	ent.interaction = &MirusDialog
-	if Quest_AreComplete( {.KilledBat1, .KilledBat2, .KilledBat3} ) {
+	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+		ent.interaction = &MirusDialog_InBatRoom
+	} else if Quest_AreComplete( {.KilledBat1, .KilledBat2, .KilledBat3} ) {
 		ent.interaction = &MirusDialog_KilledBat
 	}
 
@@ -386,18 +406,106 @@ ents_c01 :: proc "contextless" () {
 	MakeSwordAltarEntity()
 }
 
+EnableLight :: proc "contextless" ( idx: u8, pos: ivec2, s : f32 = 4, r: f32 = 0.125 ) {
+	lights[idx].enabled = true
+	lights[idx].pos = pos
+	lights[idx].s = s
+	lights[idx].r = r
+}
 
-BatDeathDialog := DialogDef {
+ents_entrance :: proc "contextless" () {
+	DisableAllLightsAndEnableDarkness()
+	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
+	EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
+	EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ) )
+	EnableLight( 4, GetTileWorldCoordinateMidPoint( 7, 4 ) )
+	EnableLight( 5, GetTileWorldCoordinateMidPoint( 9, 4 ) )
+}
+
+ents_entrance_right :: proc "contextless" () {
+	DisableAllLightsAndEnableDarkness()
+	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
+	EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
+	EnableLight( 3, GetTileWorldCoordinateMidPoint( 9, 4 ), 2, 0.5 )
+}
+
+ents_mirus_room :: proc "contextless" () {
+	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+		UpdateTileInChunk( &s_gglob.tilemap, 2, 5, 7, 1, 1 )
+	} else {
+		miru := MakeMiruEntity()
+		miru.position.offsets = GetTileWorldCoordinate( 5, 1 )
+	}
+}
+
+ents_bats_room :: proc "contextless" () {
+	on_bat_death :: proc "contextless" () {
+		if !Quest_IsComplete( .KilledBat1 ) { 
+			Dialog_Start( &BatDeathDialog1 )
+			Quest_Complete( .KilledBat1 )
+		} else if !Quest_IsComplete( .KilledBat2 ) {
+			Dialog_Start( &BatDeathDialog2 )
+			Quest_Complete( .KilledBat2 )
+		} else if !Quest_IsComplete( .KilledBat3 ) {
+			Dialog_Start( &BatDeathDialog3 )
+			Quest_Complete( .KilledBat3 )
+		}
+	}
+
+	if !Quest_IsComplete( .KilledBat1 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = on_bat_death
+	}
+	if !Quest_IsComplete( .KilledBat2 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = on_bat_death
+	}
+	if !Quest_IsComplete( .KilledBat3 ) {
+		MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = on_bat_death
+	}
+
+	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+		miru := MakeMiruEntity()
+		miru.position.offsets = GetTileWorldCoordinate( 2, 1 )
+	}
+}
+
+ents_corridor_to_tom :: proc "contextless" () {
+	DisableAllLightsAndEnableDarkness()
+	EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 7 ), 2, 0.5 )
+}
+
+ents_sword_altar_room :: proc "contextless" () {
+	altar := MakeSwordAltarEntity()
+	altar.position.offsets = GetTileWorldCoordinate( 6, 3 ) - { i32( altar.animated_sprite.sprite.w / 2 ), i32( altar.animated_sprite.sprite.h / 2 ) }
+}
+
+
+BatDeathDialog1 := DialogDef {
+	"Bat",
+	{
+		{ "DOLORES", "NOOOO" },
+	},
+	nil,
+}
+BatDeathDialog2 := DialogDef {
+	"Bat",
+	{
+		{ "she was my wife", "you bastard !" },
+	},
+	nil,
+}
+BatDeathDialog3 := DialogDef {
 	"Bat",
 	{
 		{ "noo", "why did you kill mee" },
-		{ "i had", "a family"},
+		{ "i had", "a family" },
 	},
+	nil,
 }
+
 ents_c10 :: proc "contextless" () {
 	if !Quest_IsComplete( .KilledBat1 ) {
 		MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = proc "contextless" () {
-			Dialog_Start( &BatDeathDialog )
+			Dialog_Start( &BatDeathDialog3 )
 			Quest_Complete( .KilledBat1 )
 		}
 	}
@@ -424,6 +532,13 @@ TorchChestContainer := Container {
 	},
 }
 
+DisableAllLightsAndEnableDarkness :: proc "contextless" () {
+	s_gglob.darkness_enabled = true
+	for i in 1..<len(lights) {
+		lights[i].enabled = false
+	}
+}
+
 ents_c11 :: proc "contextless" () {
 	torch_chest := MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) )
 	if Quest_IsComplete( .GotTorch ) {
@@ -433,7 +548,7 @@ ents_c11 :: proc "contextless" () {
 		torch_chest.interaction = &TorchChestContainer
 	}
 
-
+	DisableAllLightsAndEnableDarkness()
 	lights[1].enabled = true
 	lights[1].pos = GetTileWorldCoordinateMidPoint( 4, 0 )
 	lights[1].s = 4
@@ -487,7 +602,13 @@ MakeWorldMap :: proc "contextless" () {
 	GetChunkFromChunkCoordinates( &tilemap, 1, 0 ).populate_function = ents_c01
 	GetChunkFromChunkCoordinates( &tilemap, 0, 1 ).populate_function = ents_c10
 	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).populate_function = ents_c11
-	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).enable_darkness = true
+
+	GetChunkFromChunkCoordinates( &tilemap, 0, 5 ).populate_function = ents_entrance
+	GetChunkFromChunkCoordinates( &tilemap, 1, 5 ).populate_function = ents_entrance_right
+	GetChunkFromChunkCoordinates( &tilemap, 2, 5 ).populate_function = ents_mirus_room
+	GetChunkFromChunkCoordinates( &tilemap, 2, 6 ).populate_function = ents_bats_room
+	GetChunkFromChunkCoordinates( &tilemap, 3, 5 ).populate_function = ents_corridor_to_tom
+	GetChunkFromChunkCoordinates( &tilemap, 3, 6 ).populate_function = ents_sword_altar_room
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
@@ -528,9 +649,12 @@ start :: proc "c" () {
 	{
 		player := MakePlayer()
 		when USE_TEST_MAP {
-			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 4, 4 }
-		} else {
+			player.position.chunk = { 0, 0 }
 			player.position.offsets = { 76, 76 }
+		} else {
+			// player.position.chunk = { 0, 5 }
+			player.position.chunk = { 2, 5 }
+			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 		}
 	}
 	active_chunk_coords = { -1, -1 }
@@ -644,7 +768,7 @@ update :: proc "c" () {
 		NewItemAnimation_Update()
 	
 		chunk := GetChunkFromChunkCoordinates( &tilemap, active_chunk_coords.x, active_chunk_coords.y )
-		if chunk.enable_darkness {
+		if s_gglob.darkness_enabled {
 			DrawDitherPattern()
 		}
 	}

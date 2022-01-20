@@ -6,6 +6,7 @@ QuestFlag :: enum u8 {
 	KilledBat2,
 	KilledBat3,
 	GotTorch,
+	TalkedToMiruAfterBatDeath,
 }
 QuestFlags :: distinct bit_set[QuestFlag; u8]
 

@@ -220,7 +220,7 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 		entity.received_damage = 0
 	}
 
-	if entity.health_points == 0 { // make sure a dead entity can't inflict damage
+	if entity.health_points == 0 && entity.received_damage == 1 { // make sure a dead entity can't inflict damage
 		entity.flags -= {.DamageMaker}
 		entity.animated_sprite.flags += {.Pause}
 		if entity.on_death != nil {

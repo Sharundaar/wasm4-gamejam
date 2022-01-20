@@ -252,7 +252,6 @@ MakePlayer :: proc "contextless" () -> ^Entity {
 	player.looking_dir = { 1, 1 }
 	player.max_health_points = 6
 	player.health_points = player.max_health_points
-	player.position.chunk = { 0, 0 }
 	player.collider = { { 0, 0 }, { 8, 8 } }
 	player.damage_flash_palette = 0x0012
 	player.palette_mask = 0x0021

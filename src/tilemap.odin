@@ -19,7 +19,6 @@ TileChunk :: struct #packed {
 	// indices into the map tiledef array
 	tiles: [TILE_CHUNK_COUNT_W*TILE_CHUNK_COUNT_H]u8,
 	populate_function: proc "contextless" (),
-	enable_darkness: bool,
 }
 
 chunk_tile_collider :: struct {
@@ -43,6 +42,10 @@ ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: iv
 			DestroyEntity( &ent )
 		}
 	}
+
+	// disable darkness
+	s_gglob.darkness_enabled = false
+
 	// create entities linked to this chunk
 	active_chunk := GetChunkFromChunkCoordinates( tilemap, active_chunk_coords.x, active_chunk_coords.y )
 	if active_chunk.populate_function != nil {
@@ -66,55 +69,6 @@ ActivateChunk :: proc "contextless" ( tilemap: ^TileMap, active_chunk_coords: iv
 	}
 }
 
-IsCollidingWithTilemap :: proc "contextless" ( tilemap: ^TileMap, top_left: GlobalCoordinates, w, h: i32 ) -> bool {
-	tile_pos_min := top_left.offsets / TILE_SIZE
-	if tile_pos_min.x < 0 do tile_pos_min.x = 0
-	if tile_pos_min.y < 0 do tile_pos_min.y = 0
-	if tile_pos_min.x >= TILE_CHUNK_COUNT_W do tile_pos_min.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_min.y >= TILE_CHUNK_COUNT_H do tile_pos_min.y = TILE_CHUNK_COUNT_H - 1
-	
-	tile_pos_max := (top_left.offsets + ivec2{w, h}) / TILE_SIZE
-	if tile_pos_max.x < 0 do tile_pos_max.x = 0
-	if tile_pos_max.y < 0 do tile_pos_max.y = 0
-	if tile_pos_max.x >= TILE_CHUNK_COUNT_W do tile_pos_max.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_max.y >= TILE_CHUNK_COUNT_H do tile_pos_max.y = TILE_CHUNK_COUNT_H - 1
-
-	chunk_idx := top_left.chunk.y * TILEMAP_CHUNK_COUNT_W + top_left.chunk.x
-	for tile_y in tile_pos_min.y .. tile_pos_max.y {
-		for tile_x in tile_pos_min.x .. tile_pos_max.x {
-			idx := tile_y * TILE_CHUNK_COUNT_W + tile_x
-			tile := tilemap.chunks[chunk_idx].tiles[idx]
-			if tilemap.tiledef[tile].solid do return true
-		}
-	}
-
-	return false
-}
-
-IsCollidingWithTilemap_Collider :: proc "contextless" ( tilemap: ^TileMap, chunk: ivec2, collider: rect ) -> bool {
-	tile_pos_min := collider.min / TILE_SIZE
-	if tile_pos_min.x < 0 do tile_pos_min.x = 0
-	if tile_pos_min.y < 0 do tile_pos_min.y = 0
-	if tile_pos_min.x >= TILE_CHUNK_COUNT_W do tile_pos_min.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_min.y >= TILE_CHUNK_COUNT_H do tile_pos_min.y = TILE_CHUNK_COUNT_H - 1
-	
-	tile_pos_max := collider.max / TILE_SIZE
-	if tile_pos_max.x < 0 do tile_pos_max.x = 0
-	if tile_pos_max.y < 0 do tile_pos_max.y = 0
-	if tile_pos_max.x >= TILE_CHUNK_COUNT_W do tile_pos_max.x = TILE_CHUNK_COUNT_W - 1
-	if tile_pos_max.y >= TILE_CHUNK_COUNT_H do tile_pos_max.y = TILE_CHUNK_COUNT_H - 1
-
-	chunk_idx := chunk.y * TILEMAP_CHUNK_COUNT_W + chunk.x
-	for tile_y in tile_pos_min.y .. tile_pos_max.y {
-		for tile_x in tile_pos_min.x .. tile_pos_max.x {
-			idx := tile_y * TILE_CHUNK_COUNT_W + tile_x
-			tile := tilemap.chunks[chunk_idx].tiles[idx]
-			if tilemap.tiledef[tile].solid do return true
-		}
-	}
-
-	return false
-}
 
 GetTileWorldCoordinate :: proc "contextless" ( x, y: i32 ) -> ivec2 {
 	return { x*TILE_SIZE, y*TILE_SIZE }
@@ -152,5 +106,19 @@ GetTilesTouchedByWorldRect :: proc "contextless" ( r: rect ) -> rect {
 	return {
 		{ r.min.x / TILE_SIZE, r.min.y / TILE_SIZE },
 		{ (r.max.x - 1) / TILE_SIZE, (r.max.y - 1) / TILE_SIZE },
+	}
+}
+
+UpdateTileInChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y: i32, tile_x, tile_y: i32, newDef: u8 ) {
+	tileIdx := tile_y * TILE_CHUNK_COUNT_W + tile_x
+	tilemap.chunks[chunk_y * TILEMAP_CHUNK_COUNT_W + chunk_x].tiles[tileIdx] = newDef
+	if s_gglob.active_chunk_coords == { chunk_x, chunk_y } {
+		def := tilemap.tiledef[newDef]
+		if def.solid {
+			tilemap.active_chunk_colliders[tileIdx].collider = rect{ {tile_x * TILE_SIZE, tile_y * TILE_SIZE}, {tile_x * TILE_SIZE + TILE_SIZE, tile_y * TILE_SIZE + TILE_SIZE} }
+			tilemap.active_chunk_colliders[tileIdx].has_collider = true
+		} else {
+			tilemap.active_chunk_colliders[tileIdx].has_collider = false
+		}
 	}
 }
