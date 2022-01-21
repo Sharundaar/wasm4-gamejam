@@ -10,7 +10,7 @@ SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
 START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
-NO_CLIP :: true
+NO_CLIP :: false
 
 import "w4"
 import "core:math"
@@ -305,6 +305,7 @@ MirusDialog_KilledBat := DialogDef {
 		if !Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
 			Quest_Complete( .TalkedToMiruAfterBatDeath )
 			UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
+			Sound_Play( &Sound_OpenDoor )
 		}
 	},
 }
@@ -316,6 +317,12 @@ MirusDialog_InBatRoom := DialogDef {
 		{ "things are dead.", "Go away now." },
 	},
 	nil,
+}
+
+Sound_OpenDoor := Sound {
+	{
+		{ 500, 300, 0, {sustain=10}, .Noise, 25 },
+	},
 }
 
 
@@ -627,10 +634,21 @@ start :: proc "c" () {
 			player.position.chunk = { 0, 0 }
 			player.position.offsets = { 76, 76 }
 		} else {
+			// official entrance
 			// player.position.chunk = { 0, 3 }
 			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
-			player.position.chunk = { 3, 4 }
+
+			// sword altar room
+			// player.position.chunk = { 3, 4 }
+			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+			// mirus room
+			player.position.chunk = { 2, 3 }
 			player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+			Quest_Complete( .KilledBat1 )
+			Quest_Complete( .KilledBat2 )
+			Quest_Complete( .KilledBat3 )
 		}
 		s_gglob.last_valid_player_position = player.position.offsets
 	}
