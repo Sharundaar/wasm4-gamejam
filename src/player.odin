@@ -54,6 +54,15 @@ PlayerAnimation_SwingSword_Back := AnimatedSprite {
 		AnimationFrame{ 0, 40, nil },
 	},
 }
+PlayerAnimation_Falling := AnimatedSprite {
+	ImageKey.mc, 8, 8, 24,
+	{
+		AnimationFrame{ 30, 0, nil },
+		AnimationFrame{ 20, 8, nil },
+		AnimationFrame{ 10, 16, nil },
+		AnimationFrame{ 0, 24, nil },
+	},
+}
 
 // w4.tone( 490, 7, 5, .Noise )
 PlayerSound_SwingSword := Sound {
@@ -211,7 +220,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	// actions
 	if s_gglob.input_state.APressed {
-		if s_gglob.game_state == GameState.Game {
+		if s_gglob.game_state == GameState.Game && entity.falling_frame_counter == 0 {
 			interaction_rect := GetWorldSpaceCollider( entity )
 			interaction_rect = translate_rect( interaction_rect, looking_dir * {HALF_PLAYER_W, HALF_PLAYER_H} )
 			
@@ -228,20 +237,21 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 					Sound_Play( &PlayerSound_SwingSword )
 					entity.swinging_sword = 1
 					entity.flags += { .DamageMaker }
+					sprite : ^AnimatedSprite
 					if looking_dir.x < 0 {
-						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
+						sprite = &PlayerAnimation_SwingSword_LeftRight
 						entity.hurt_box = { { -5, 0 }, { -5 + 5, 0 + 8} }
 					} else if looking_dir.x > 0 {
-						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_LeftRight
+						sprite = &PlayerAnimation_SwingSword_LeftRight
 						entity.hurt_box = { { 8, 0 }, { 8 + 5, 0 + 8} }
 					} else if looking_dir.y > 0 {
-						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Front
+						sprite = &PlayerAnimation_SwingSword_Front
 						entity.hurt_box = { { 0, 6 }, { 7, 10 } }
 					} else if looking_dir.y < 0 {
-						entity.animated_sprite.sprite = &PlayerAnimation_SwingSword_Back
+						sprite = &PlayerAnimation_SwingSword_Back
 						entity.hurt_box = { { 0, -2 }, { 7, 2 } }
 					}
-					entity.animated_sprite.current_frame = 0
+					AnimationController_SetSprite( &entity.animated_sprite, sprite )
 				}
 				when DEVELOPMENT_BUILD do w4.rect( interaction_rect.min.x, interaction_rect.min.y, u32( interaction_rect.max.x - interaction_rect.min.x ), u32( interaction_rect.max.y - interaction_rect.min.y ) )
 			}
@@ -263,17 +273,23 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 		}
 	}
 
-	if entity.swinging_sword == 0 {
+	if entity.falling_frame_counter > 0 {
+		if entity.falling_frame_counter == 1 {
+			AnimationController_SetSprite( &entity.animated_sprite, &PlayerAnimation_Falling )
+		}
+	} else if entity.swinging_sword == 0 {
 		if moving {
-			entity.animated_sprite.sprite = &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back
+			AnimationController_SetSprite( &entity.animated_sprite, &PlayerAnimation_Move_Front if looking_dir.y >= 0 else &PlayerAnimation_Move_Back, true )
 		} else {
-			entity.animated_sprite.sprite = &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back
+			AnimationController_SetSprite( &entity.animated_sprite, &PlayerAnimation_Idle_Front if looking_dir.y >= 0 else &PlayerAnimation_Idle_Back, true )
 		}
 	}
 
 	// display player
 	w4.DRAW_COLORS^ = entity.palette_mask
-	if entity.swinging_sword > 0 {
+	if entity.falling_frame_counter > 0 {
+		DrawAnimatedSprite( &entity.animated_sprite, position.offsets.x, position.offsets.y )
+	} else if entity.swinging_sword > 0 {
 		flip := true if looking_dir.x < 0 else false
 		x, y := position.offsets.x, position.offsets.y
 		if looking_dir.x != 0 && flip {

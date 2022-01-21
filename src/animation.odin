@@ -28,6 +28,18 @@ AnimationController :: struct {
 	flags: AnimationFlags,
 }
 
+AnimationController_SetSprite :: proc "contextless" ( controller: ^AnimationController, sprite: ^AnimatedSprite, dont_hard_reset_frame_counter := false ) {
+	controller.sprite = sprite
+	if !dont_hard_reset_frame_counter {
+		controller.current_frame = 0
+		controller.frame_counter = 0
+	} else {
+		if controller.current_frame >= u8( len( sprite.frames ) ) {
+			controller.current_frame = 0
+		}
+	}
+}
+
 AnimationToBlitFlags :: proc "contextless" ( flags: AnimationFlags ) -> w4.Blit_Flags {
 	blit_flags : w4.Blit_Flags
 	blit_flags += {.FLIPX} if AnimationFlag.FlipX in flags else nil

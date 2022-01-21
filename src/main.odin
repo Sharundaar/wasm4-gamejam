@@ -2,7 +2,7 @@ package main
 
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
-USE_TEST_MAP :: false
+USE_TEST_MAP :: true
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
