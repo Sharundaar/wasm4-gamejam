@@ -238,7 +238,13 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	}
 
 	if entity.health_points == 0 && entity.received_damage >= DAMAGE_ANIMATION_LENGTH {
-		DestroyEntity( entity )
+		if entity.name == EntityName.Player {
+			s_gglob.game_state = GameState.GameOverAnimation
+			entity.palette_mask = entity.saved_palette
+			entity.received_damage = 0
+		} else {
+			DestroyEntity( entity )
+		}
 	}
 }
 

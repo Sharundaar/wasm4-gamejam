@@ -6,6 +6,7 @@ AnimationFlag :: enum {
 	FlipX,
 	FlipY,
 	Pause,
+	NoSprite, // display nothing
 }
 AnimationFlags :: distinct bit_set[AnimationFlag; u8]
 
@@ -59,7 +60,9 @@ DrawAnimatedSprite :: proc "contextless" ( using controller: ^AnimationControlle
 	blit_flags += img.flags
 	blit_flags += AnimationToBlitFlags( frame.flags )
 	
-	w4.blit_sub( &img.bytes[0], x, y, u32(sprite.w), u32(sprite.h), u32(frame.x_offs), u32(sprite.y_offs), int(img.w), blit_flags )
+	if .NoSprite not_in frame.flags {
+		w4.blit_sub( &img.bytes[0], x, y, u32(sprite.w), u32(sprite.h), u32(frame.x_offs), u32(sprite.y_offs), int(img.w), blit_flags )
+	}
 	if frame.length > 0 && .Pause not_in flags { // length of 0 describes a blocked frame and needs to be advanced manually
 		frame_counter += 1
 		if frame_counter >= frame.length {

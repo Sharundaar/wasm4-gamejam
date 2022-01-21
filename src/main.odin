@@ -2,13 +2,14 @@ package main
 
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
-USE_TEST_MAP :: true
+USE_TEST_MAP :: false
 SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: true
-START_WITH_SWORD :: true
+SKIP_INTRO :: false
+START_WITH_SWORD :: false
+TEST_DEATH_ANIMATION :: false
 
 import "w4"
 import "core:math"
@@ -56,9 +57,11 @@ normalize_vec2 :: proc "contextless" ( v: ivec2 ) -> [2]f32 {
 
 GameState :: enum {
 	MainMenu,
+	GameOverScreen,
 	Game,
 	Dialog,
 	NewItemAnimation,
+	GameOverAnimation,
 }
 
 InputState :: struct {
@@ -605,12 +608,12 @@ MakeWorldMap :: proc "contextless" () {
 	GetChunkFromChunkCoordinates( &tilemap, 0, 1 ).populate_function = ents_c10
 	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).populate_function = ents_c11
 
-	GetChunkFromChunkCoordinates( &tilemap, 0, 5 ).populate_function = ents_entrance
-	GetChunkFromChunkCoordinates( &tilemap, 1, 5 ).populate_function = ents_entrance_right
-	GetChunkFromChunkCoordinates( &tilemap, 2, 5 ).populate_function = ents_mirus_room
-	GetChunkFromChunkCoordinates( &tilemap, 2, 6 ).populate_function = ents_bats_room
-	GetChunkFromChunkCoordinates( &tilemap, 3, 5 ).populate_function = ents_corridor_to_tom
-	GetChunkFromChunkCoordinates( &tilemap, 3, 6 ).populate_function = ents_sword_altar_room
+	GetChunkFromChunkCoordinates( &tilemap, 0, 3 ).populate_function = ents_entrance
+	GetChunkFromChunkCoordinates( &tilemap, 1, 3 ).populate_function = ents_entrance_right
+	GetChunkFromChunkCoordinates( &tilemap, 2, 3 ).populate_function = ents_mirus_room
+	GetChunkFromChunkCoordinates( &tilemap, 2, 4 ).populate_function = ents_bats_room
+	GetChunkFromChunkCoordinates( &tilemap, 3, 3 ).populate_function = ents_corridor_to_tom
+	GetChunkFromChunkCoordinates( &tilemap, 3, 4 ).populate_function = ents_sword_altar_room
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
@@ -633,8 +636,8 @@ start :: proc "c" () {
 			player.position.chunk = { 0, 0 }
 			player.position.offsets = { 76, 76 }
 		} else {
-			// player.position.chunk = { 0, 5 }
-			player.position.chunk = { 2, 5 }
+			player.position.chunk = { 0, 3 }
+			// player.position.chunk = { 2, 3 }
 			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 		}
 		s_gglob.last_valid_player_position = player.position.offsets
@@ -711,20 +714,47 @@ StartFade :: proc "contextless" ( mid_fade_callback: proc "contextless" () ) {
 	s_gglob.mid_fade_callback = mid_fade_callback
 }
 
+GameOverAnimation_Update :: proc "contextless" () {
+	if s_gglob.game_state != .GameOverAnimation do return
+
+	player := GetEntityByName( .Player )
+	if player.animated_sprite.sprite != &PlayerAnimation_Death {
+		player.flags -= { .Player, .Collidable, .DamageReceiver }
+		player.flags += { .AnimatedSprite }
+		player.animated_sprite.flags -= {.Pause}
+		AnimationController_SetSprite( &player.animated_sprite, &PlayerAnimation_Death )
+		Sound_Play( &PlayerSound_Death )
+
+		// destroy all entities that are not the player
+		for entity in &s_EntityPool {
+			if .InUse not_in entity.flags do continue
+			if &entity == player do continue
+			DestroyEntity( &entity )
+		}
+	}
+	if player.animated_sprite.current_frame == 2 && player.animated_sprite.frame_counter >= 60 && s_gglob.fading_counter == 0 { // Hack, animation technically stops at 70 but we only need 60 frames
+		StartFade( proc "contextless" () { s_gglob.game_state = .GameOverScreen } )
+	}
+}
+
 @export
 update :: proc "c" () {
 	using s_gglob
 	s_gglob.global_frame_counter += 1
 	UpdateInputState()
 
-	if s_gglob.game_state == GameState.MainMenu {
+	if s_gglob.game_state == .MainMenu {
 		w4.DRAW_COLORS^ = 0x2341
 		title_screen := GetImage( ImageKey.title_screen )
 		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
 		if s_gglob.input_state.APressed && !bool( s_gglob.fading_out ) {
-			StartFade( proc "contextless" () { s_gglob.game_state = GameState.Game } )
+			StartFade( proc "contextless" () { s_gglob.game_state = .Game } )
 			InitRand( s_gglob.global_frame_counter )
 		}
+	} else if s_gglob.game_state == .GameOverScreen {
+		w4.DRAW_COLORS^ = 0x2431
+		game_over_screen := GetImage( ImageKey.game_over_screen )
+		w4.blit( &game_over_screen.bytes[0], 0, 0, u32( game_over_screen.w ), u32( game_over_screen.h ), game_over_screen.flags )
 	} else {
 		player := GetEntityByName( EntityName.Player )
 		if player != nil && player.position.chunk != active_chunk_coords {
@@ -736,11 +766,12 @@ update :: proc "c" () {
 	
 		UpdateEntities()
 	
-		lights[0].enabled = Inventory_HasItemSelected( player, .Torch )
+		lights[0].enabled = Inventory_HasItemSelected( player, .Torch ) || s_gglob.game_state == GameState.GameOverAnimation
 		lights[0].pos = player.position.offsets
 		lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
 		lights[0].s = 3
 	
+		GameOverAnimation_Update()
 		DrawStatusUI()
 		Dialog_Update()
 		NewItemAnimation_Update()

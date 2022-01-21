@@ -60,11 +60,25 @@ PlayerAnimation_Falling := AnimatedSprite {
 		AnimationFrame{ 30, 0, nil },
 		AnimationFrame{ 20, 8, nil },
 		AnimationFrame{ 10, 16, nil },
-		AnimationFrame{ 0, 24, nil },
+		AnimationFrame{ 0, 16, {.NoSprite} },
+	},
+}
+PlayerAnimation_Death := AnimatedSprite {
+	ImageKey.mc, 8, 8, 24,
+	{
+		AnimationFrame{ 60, 24, nil },
+		AnimationFrame{ 100, 32, nil },
+		AnimationFrame{ 255, 40, nil },
 	},
 }
 
-// w4.tone( 490, 7, 5, .Noise )
+PlayerSound_Death := Sound {
+	{
+		{ 800, 400, 60, {sustain=10}, .Noise, 25 },
+		{ 600, 400, 160, {sustain=15}, .Noise, 25 },
+	},
+}
+
 PlayerSound_SwingSword := Sound {
 	{
 		{ 490, 490, 0, {sustain=5}, .Noise, 7 },
@@ -178,9 +192,9 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	if entity.walking_sound_counter > 0 {
 		if entity.walking_sound_counter == 15 {
-			w4.tone( 50, 1, 8, .Pulse2 )
+			w4.tone( 50, 2, 8, .Pulse2 )
 		} else if entity.walking_sound_counter >= 30 {
-			w4.tone( 75, 1, 8, .Pulse2 )
+			w4.tone( 75, 2, 8, .Pulse2 )
 			entity.walking_sound_counter = 0
 		}
 	}
@@ -324,6 +338,10 @@ MakePlayer :: proc "contextless" () -> ^Entity {
 	player.collider = { { 0, 0 }, { 8, 8 } }
 	player.damage_flash_palette = 0x0012
 	player.palette_mask = 0x0021
+
+	when TEST_DEATH_ANIMATION {
+		player.health_points = 1
+	}
 
 	when START_WITH_SWORD {
 		Quest_Complete( .GotSword )

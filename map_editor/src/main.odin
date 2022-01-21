@@ -19,8 +19,8 @@ TILE_SIZE :: 16
 TILE_CHUNK_COUNT_W :: 10
 TILE_CHUNK_COUNT_H :: 9
 
-TILEMAP_CHUNK_COUNT_W :: 10
-TILEMAP_CHUNK_COUNT_H :: 10
+TILEMAP_CHUNK_COUNT_W :: 6
+TILEMAP_CHUNK_COUNT_H :: 5
 
 TILE_TOTAL_W :: TILE_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_W
 TILE_TOTAL_H :: TILE_CHUNK_COUNT_H * TILEMAP_CHUNK_COUNT_H
@@ -38,6 +38,7 @@ tiledefs := []TileDefinition {
     { color_from_str( "#2323AA" ) },
     { color_from_str( "#23AA23" ) },
     { color_from_str( "#FF7777" ) },
+    { color_from_str( "#FFFFFF" ) },
 }
 tilemap := TileMap{ {}, tiledefs }
 camera  : Camera
@@ -116,9 +117,16 @@ LoadTilemap :: proc( input: string = "map.txt") {
     content, success := os.read_entire_file( input )
     if success {
         fmt.println( "Successfully read", input )
-        for b, i in content {
-            if b == '\n' || b == '\r' do break
-            tilemap.tiles[i] = u8( b - '0' )
+        for chunk_y in 0..<TILEMAP_CHUNK_COUNT_H {
+            for chunk_x in 0..<TILEMAP_CHUNK_COUNT_W {
+                for tile_y in 0..<TILE_CHUNK_COUNT_H {
+                    for tile_x in 0..<TILE_CHUNK_COUNT_W {
+                        idx := tile_x + tile_y * TILE_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_W + chunk_x * TILE_CHUNK_COUNT_W + chunk_y * TILE_CHUNK_COUNT_W * TILE_CHUNK_COUNT_H * TILEMAP_CHUNK_COUNT_W
+                        content_idx := tile_x + tile_y * TILE_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_W + chunk_x * TILE_CHUNK_COUNT_W + chunk_y * TILE_CHUNK_COUNT_W * TILE_CHUNK_COUNT_H * TILEMAP_CHUNK_COUNT_W
+                        tilemap.tiles[idx] = u8( content[content_idx] - '0' )
+                    }
+                }
+            }
         }
     } else {
         fmt.println( "Failed to read", input )
@@ -137,12 +145,12 @@ ExportTilemap :: proc ( output : string = "../../src/tilemap_export.odin" ) {
     builder := strings.make_builder()
     strings.write_string( &builder, "package main\n" )
     strings.write_string( &builder, "tilemap_chunks : [TILEMAP_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_H]TileChunk = {\n" )
-    for chunk_y in 0..<TILEMAP_CHUNK_COUNT_W {
-        for chunk_x in 0..<TILEMAP_CHUNK_COUNT_H {
+    for chunk_y in 0..<TILEMAP_CHUNK_COUNT_H {
+        for chunk_x in 0..<TILEMAP_CHUNK_COUNT_W {
             strings.write_string( &builder, "\t{ { " )
             for tile_y in 0..<TILE_CHUNK_COUNT_H {
                 for tile_x in 0..<TILE_CHUNK_COUNT_W {
-                    def := tilemap.tiles[ tile_x + tile_y * TILE_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_W + chunk_x * TILE_CHUNK_COUNT_W + chunk_y * TILE_CHUNK_COUNT_W * TILE_CHUNK_COUNT_H * TILEMAP_CHUNK_COUNT_W ]
+                    def := tilemap.tiles[tile_x + tile_y * TILE_CHUNK_COUNT_W * TILEMAP_CHUNK_COUNT_W + chunk_x * TILE_CHUNK_COUNT_W + chunk_y * TILE_CHUNK_COUNT_W * TILE_CHUNK_COUNT_H * TILEMAP_CHUNK_COUNT_W]
                     strings.write_byte( &builder, def + '0' )
                     strings.write_string( &builder, ", " )
                 }

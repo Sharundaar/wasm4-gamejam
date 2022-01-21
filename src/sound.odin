@@ -65,7 +65,6 @@ Sound_UpdateSingle :: proc "contextless" ( ctrl: ^SoundController ) {
 	if played_sound == u8( len( ctrl.sound.frames ) ) {
 		ctrl.sound = nil
 		ctrl.enabled_time = 0
-		w4.trace( "ended sound" )
 	}
 }
 
