@@ -1,11 +1,9 @@
 @echo off
 echo build images...
 set imgs=img_src\key.png ^
-		 img_src\dude.png ^
 		 img_src\bat.png ^
 		 img_src\chest.png ^
 		 img_src\tileset.png ^
-		 img_src\fire.png ^
 		 img_src\mc.png ^
 		 img_src\status_bar.png ^
 		 img_src\miru.png ^

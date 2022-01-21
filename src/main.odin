@@ -140,15 +140,6 @@ BatAnimation := AnimatedSprite {
 	},
 }
 
-FireAnimation := AnimatedSprite {
-	ImageKey.fire, 16, 16, 0,
-	{
-		AnimationFrame{ 15, 0, nil },
-		AnimationFrame{ 15, 0, { .FlipX } },
-	},
-}
-
-
 UpdateInputState :: proc "contextless" () {
 	using s_gglob.input_state
 	APressed = false ; AReleased = false
@@ -789,21 +780,4 @@ update :: proc "c" () {
 
 	Sound_Update()
 	UpdateFade()
-}
-
-
-TestGallery :: proc "contextless" () {
-	when false
-	{
-		w4.DRAW_COLORS^ = 0x4320
-		w4.blit(ImageKey.key.bytes[0], 20, 20, Images.key.w, Images.key.h)
-		w4.blit(ImageKey.dude.bytes[0], 30, 20, Images.dude.w, Images.dude.h)
-		w4.blit_sub(ImageKey.chest.bytes[0], 20, 30, 16, 16, 0, 0, int(Images.chest.w), Images.chest.flags)
-		w4.blit_sub(ImageKey.chest.bytes[0], 40, 30, 16, 16, 16, 0, int(Images.chest.w), Images.chest.flags)
-	
-		w4.DRAW_COLORS^ = 0x4320
-		DrawAnimatedSprite( &BatAnimation, 40, 20 )
-		w4.DRAW_COLORS^ = 0x4230
-		DrawAnimatedSprite( &FireAnimation, 60, 20 )
-	}
 }
