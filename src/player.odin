@@ -130,7 +130,7 @@ IsCollidingWithAnyEntity :: proc "contextless" ( entity: ^Entity, collider: rect
 UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	if .Player not_in flags do return
 
-	dir : ivec2 = { 0, 0 }
+	dir : ivec2
 	if s_gglob.game_state == GameState.Game {
 		center := entity.position.offsets + { HALF_PLAYER_W, HALF_PLAYER_H }
 		tile := GetTileDefForCoordinates( &s_gglob.tilemap, entity.position.chunk.x, entity.position.chunk.y, center.x, center.y )
