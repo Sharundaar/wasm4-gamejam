@@ -55,6 +55,24 @@ PlayerAnimation_SwingSword_Back := AnimatedSprite {
 	},
 }
 
+// w4.tone( 490, 7, 5, .Noise )
+PlayerSound_SwingSword := Sound {
+	{
+		{ 490, 490, 0, {sustain=5}, .Noise, 7 },
+	},
+}
+PlayerSound_Hurt := Sound {
+	{
+		{ 2700, 1200, 0, {sustain=3}, .Triangle, 25 },
+	},
+}
+
+PlayerSound_Falling := Sound {
+	{
+		{ 1700, 1, 0, {sustain=60}, .Pulse1, 25 },
+	},
+}
+
 GetWorldSpaceCollider :: proc "contextless" ( ent: ^Entity ) -> rect {
 	return translate_rect( ent.collider, ent.position.offsets )
 }
@@ -160,6 +178,9 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 
 	moving := dir.x != 0 || dir.y != 0
 	if entity.falling_frame_counter > 0 { // when falling, still move where you look
+		if entity.falling_frame_counter == 1 {
+			Sound_Play( &PlayerSound_Falling )
+		}
 		new_looking_dir : ivec2
 		if .LEFT in w4.GAMEPAD1^ {
 			new_looking_dir.x -= 1
@@ -204,7 +225,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 			} else { // perform inventory object use
 				if entity.inventory.items[InventoryItem.Sword] && entity.inventory.current_item == u8(InventoryItem.Sword) {
 					// swing sword action
-					w4.tone( 490, 7, 5, .Noise )
+					Sound_Play( &PlayerSound_SwingSword )
 					entity.swinging_sword = 1
 					entity.flags += { .DamageMaker }
 					if looking_dir.x < 0 {

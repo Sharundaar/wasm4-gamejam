@@ -755,6 +755,7 @@ update :: proc "c" () {
 		}
 	}
 
+	Sound_Update()
 	UpdateFade()
 }
 

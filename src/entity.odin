@@ -200,18 +200,12 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	if entity.received_damage == 255 {
 		entity.received_damage = 1
 		if entity.name == EntityName.Player {
-			w4.tone( 2700, 3, 25, .Triangle )
+			Sound_Play( &PlayerSound_Hurt )
 		} else {
 			w4.tone( 100, 2, 25, .Pulse1 )
 		}
 	} else {
 		entity.received_damage += 1
-	}
-
-	if entity.received_damage == 4 {
-		if entity.name == EntityName.Player {
-			w4.tone( 1200, 3, 25, .Triangle )
-		}
 	}
 
 	DAMAGE_PUSH_BACK_LENGTH :: 16
