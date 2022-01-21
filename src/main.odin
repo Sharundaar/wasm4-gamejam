@@ -10,6 +10,7 @@ SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
 START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
+NO_CLIP :: true
 
 import "w4"
 import "core:math"
@@ -92,23 +93,6 @@ GlobalCoordinates :: struct {
 	chunk: ivec2,
 	offsets: ivec2,
 	// sub_pixel_offset: i8vec2, // when reach 100, regularize offsets to + 1, used for small movements
-}
-
-when false {
-	ApplySubPixelCoordinate :: proc "contextless" ( coord: GlobalCoordinates ) -> GlobalCoordinates {
-		if result.sub_pixel_offset.x >= 100 {
-			result.offsets.x += 1
-			result.sub_pixel_offset.x -= 100
-		}
-		if result.sub_pixel_offset.x < 0 {
-			result.offsets.x -= 1
-			result.sub_pixel_offset.x += 100
-		}
-		if result.sub_pixel_offset.y < 0 {
-			result.offsets.y -= 1
-			result.sub_pixel_offset.y += 100
-		}
-	}
 }
 
 RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates, move_chunks := true ) -> GlobalCoordinates {
@@ -221,7 +205,7 @@ DrawDitherPattern :: proc "contextless" () {
 	w4.DRAW_COLORS^ = 0x0004
 	color_at_px_for_light :: proc "contextless" ( l: Light, x, y: i32 ) -> f32 {
 		if !l.enabled do return 0
-		pxx, pyy := f32(l.pos.x + 4) / DW, f32(l.pos.y + 4) / DH
+		pxx, pyy := f32(l.pos.x) / DW, f32(l.pos.y) / DH
 		xx, yy := f32(x) / DW, f32(y) / DH
 		xx -= pxx
 		yy -= pyy
@@ -483,6 +467,21 @@ ents_sword_altar_room :: proc "contextless" () {
 	altar.position.offsets = GetTileWorldCoordinate( 6, 3 ) - { i32( altar.animated_sprite.sprite.w / 2 ), i32( altar.animated_sprite.sprite.h / 2 ) }
 }
 
+ents_torch_chest_room :: proc "contextless" () {
+	torch_chest := MakeChestEntity( GetTileWorldCoordinate2( 8, 2 ) )
+	if Quest_IsComplete( .GotTorch ) {
+		AnimatedSprite_NextFrame( &torch_chest.animated_sprite )
+	} else {
+		torch_chest.flags += {.Interactible}
+		torch_chest.interaction = &TorchChestContainer
+	}
+
+	DisableAllLightsAndEnableDarkness()
+	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 7 ), 2 )
+	EnableLight( 2, GetTileWorldCoordinateMidPoint( 8, 7 ), 2 )
+	EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ), 2 )
+	EnableLight( 4, GetTileWorldCoordinateMidPoint( 8, 2 ), 2 )
+}
 
 BatDeathDialog1 := DialogDef {
 	"Bat",
@@ -614,6 +613,7 @@ MakeWorldMap :: proc "contextless" () {
 	GetChunkFromChunkCoordinates( &tilemap, 2, 4 ).populate_function = ents_bats_room
 	GetChunkFromChunkCoordinates( &tilemap, 3, 3 ).populate_function = ents_corridor_to_tom
 	GetChunkFromChunkCoordinates( &tilemap, 3, 4 ).populate_function = ents_sword_altar_room
+	GetChunkFromChunkCoordinates( &tilemap, 4, 2 ).populate_function = ents_torch_chest_room
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef

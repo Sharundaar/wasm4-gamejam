@@ -148,7 +148,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 	if s_gglob.game_state == GameState.Game {
 		center := entity.position.offsets + { HALF_PLAYER_W, HALF_PLAYER_H }
 		tile := GetTileDefForCoordinates( &s_gglob.tilemap, entity.position.chunk.x, entity.position.chunk.y, center.x, center.y )
-		if tile.collider_type == .Hole { // falling
+		if NO_CLIP == false && tile.collider_type == .Hole { // falling
 			entity.walking_sound_counter = 0
 			tile_pos := GetTileLocalCoordinate( center )
 			tile_midpoint := GetTileWorldCoordinateMidPoint( tile_pos.x, tile_pos.y )
@@ -332,6 +332,9 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 MakePlayer :: proc "contextless" () -> ^Entity {
 	player := AllocateEntity( EntityName.Player )
 	player.flags += { .Player, .DamageReceiver, .Collidable }
+	when NO_CLIP {
+		player.flags -= {.Collidable}
+	}
 	player.looking_dir = { 1, 1 }
 	player.max_health_points = 6
 	player.health_points = player.max_health_points
