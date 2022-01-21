@@ -7,7 +7,7 @@ SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: false
+SKIP_INTRO :: true
 START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
 
@@ -324,12 +324,12 @@ MirusDialog_KilledBat := DialogDef {
 	"Miru",
 	{
 		{ "You did it!", "" },
-		{ "Thanks, here's", "a lil' something"},
+		{ "Thanks, let me", "open the door"},
 	},
 	proc "contextless" () {
 		if !Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
 			Quest_Complete( .TalkedToMiruAfterBatDeath )
-			UpdateTileInChunk( &s_gglob.tilemap, 2, 5, 7, 1, 1 )
+			UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
 		}
 	},
 }
@@ -436,7 +436,7 @@ ents_entrance_right :: proc "contextless" () {
 
 ents_mirus_room :: proc "contextless" () {
 	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
-		UpdateTileInChunk( &s_gglob.tilemap, 2, 5, 7, 1, 1 )
+		UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
 	} else {
 		miru := MakeMiruEntity()
 		miru.position.offsets = GetTileWorldCoordinate( 5, 1 )
@@ -636,9 +636,10 @@ start :: proc "c" () {
 			player.position.chunk = { 0, 0 }
 			player.position.offsets = { 76, 76 }
 		} else {
-			player.position.chunk = { 0, 3 }
-			// player.position.chunk = { 2, 3 }
-			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			// player.position.chunk = { 0, 3 }
+			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			player.position.chunk = { 3, 4 }
+			player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
 		}
 		s_gglob.last_valid_player_position = player.position.offsets
 	}

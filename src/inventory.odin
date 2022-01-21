@@ -81,10 +81,33 @@ Inventory_HasItemSelected :: proc "contextless" ( entity: ^Entity, item: Invento
 	return bool( entity.inventory.items[item] ) && entity.inventory.current_item == u8( item )
 }
 
+NewItemMusic := Sound {
+	{
+		{ 500, 500, 0, {sustain=20}, .Pulse1, 25 },
+		{ 300, 300, 15, {sustain=20}, .Pulse2, 25 },
+		{ 500, 500, 25, {sustain=20}, .Pulse1, 25 },
+		{ 700, 700, 40, {sustain=20}, .Pulse1, 25 },
+		// { 800, 100, 27, {sustain=30}, .Pulse2, 25 },
+		/*
+		{ 400, 400, 0, {sustain=10}, .Pulse1, 25 },
+		{ 800, 800, 11, {sustain=10}, .Pulse1, 25 },
+		{ 1000, 1000, 22, {sustain=10}, .Pulse1, 25 },
+		{ 3000, 3000, 33, {sustain=10}, .Pulse2, 25 },
+		*/
+		// { 2500, 3000, 33, {sustain=10}, .Pulse2, 25 },
+		// { 600, 600, 0, {sustain=40}, .Pulse2, 25 },
+		// { 1000, 1000, 41, {sustain=40}, .Pulse2, 25 },
+	},
+}
+
 NewItemAnimation_Update :: proc "contextless" () {
 	if s_gglob.game_state != GameState.NewItemAnimation do return
 
 	ANIMATION_DURATION :: 90
+
+	if s_gglob.new_item_animation_counter == 0 {
+		Sound_Play( &NewItemMusic )
+	}
 
 	x := s_gglob.new_item_entity_target.position.offsets.x + ( 8 - i32(s_InventoryUIData.icons[s_gglob.new_item].w ) ) / 2
 	y := s_gglob.new_item_entity_target.position.offsets.y - 8 - 6
