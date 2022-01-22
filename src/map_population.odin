@@ -155,6 +155,7 @@ ents_corridor_to_tom := PopulateData {
 	proc "contextless" () {
 		DisableAllLightsAndEnableDarkness()
 		EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 7 ), 2, 0.5 )
+		EnableLight( 2, GetTileWorldCoordinateMidPoint( 6, 0 ), 4, 0.5 )
 	},
 }
 
@@ -163,6 +164,8 @@ ents_sword_altar_room := PopulateData{
 	proc "contextless" () {
 		altar := MakeSwordAltarEntity()
 		altar.position.offsets = GetTileWorldCoordinate( 6, 3 ) - { i32( altar.animated_sprite.sprite.w / 2 ), i32( altar.animated_sprite.sprite.h / 2 ) }
+
+		sign := MakeSignEntity( GetTileWorldCoordinate2( 4, 0 ), &SignTomDialog )
 	},
 }
 

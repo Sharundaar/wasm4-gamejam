@@ -203,3 +203,37 @@ MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
 
 	return ent
 }
+
+/*
+****************************
+*           Sign           *
+****************************
+*/
+
+SignTomDialog := DialogDef {
+    "Sign",
+    {
+        { "Please, do not", "kill the bats." },
+        { "", "        -- Tom" },
+    },
+    nil,
+}
+SignSprite := AnimatedSprite {
+    ImageKey.sign, 8, 8, 0,
+    {
+        AnimationFrame{ 0, 0, nil },
+    },
+}
+
+MakeSignEntity :: proc "contextless" ( tile_x, tile_y: i32, content: ^DialogDef ) -> ^Entity {
+    ent := AllocateEntity()
+
+    ent.flags += {.AnimatedSprite, .Interactible}
+    ent.position = { {}, { tile_x + 4, tile_y + 8 } }
+    ent.interaction = content
+    ent.collider = { {-4, -4}, { 12, 12 } }
+    ent.animated_sprite.sprite = &SignSprite
+    ent.palette_mask = 0x0412
+
+    return ent
+}

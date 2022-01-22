@@ -124,7 +124,7 @@ GetFirstEntityInside_Collidable :: proc "contextless" ( source: ^Entity, collide
 GetFirstEntityInside_Flags :: proc "contextless" ( source: ^Entity, collider: rect, flags: EntityFlags ) -> ^Entity {
 	for ent in &s_EntityPool {
 		if .InUse not_in ent.flags do continue
-		if (flags & ent.flags) != nil do continue
+		if (flags & ent.flags) == nil do continue
 		if ent.id == source.id do continue
 		if IsCollidingWithEntity( collider, &ent ) do return &ent
 	}
@@ -238,7 +238,7 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 			interaction_rect := GetWorldSpaceCollider( entity )
 			interaction_rect = translate_rect( interaction_rect, looking_dir * {HALF_PLAYER_W, HALF_PLAYER_H} )
 			
-			ent := GetFirstEntityInside( entity, interaction_rect )
+			ent := GetFirstEntityInside( entity, interaction_rect, EntityFlags{.Interactible} )
 			if .Interactible in ent.flags {
 				switch interaction in ent.interaction {
 					case ^DialogDef: Dialog_Start( interaction )

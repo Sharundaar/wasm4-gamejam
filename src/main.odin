@@ -188,7 +188,7 @@ DrawTileChunk :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x_off
 			{
 				c := tilemap.active_chunk_colliders[y * TILE_CHUNK_COUNT_W + x]
 				using c
-				if has_collider {
+				if c.collider_type == .Solid {
 					DrawRect( collider )
 				}
 			}
@@ -323,16 +323,16 @@ start :: proc "c" () {
 			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// sword altar room
-			// player.position.chunk = { 3, 4 }
-			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
-
-			// mirus room
-			player.position.chunk = { 2, 3 }
+			player.position.chunk = { 3, 4 }
 			player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
 
-			Quest_Complete( .KilledBat1 )
-			Quest_Complete( .KilledBat2 )
-			Quest_Complete( .KilledBat3 )
+			// mirus room
+			// player.position.chunk = { 2, 3 }
+			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+			// Quest_Complete( .KilledBat1 )
+			// Quest_Complete( .KilledBat2 )
+			// Quest_Complete( .KilledBat3 )
 		}
 		s_gglob.last_valid_player_position = player.position.offsets
 	}
