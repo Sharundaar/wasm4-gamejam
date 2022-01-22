@@ -98,10 +98,12 @@ Dialog_End :: proc "contextless" () {
 
     s_gglob.game_state = GameState.Game
 
-    if s_gglob.dialog_ui.current_dialog.on_dialog_complete != nil {
-        s_gglob.dialog_ui.current_dialog.on_dialog_complete()
-    }
-
+    dialog_out := s_gglob.dialog_ui.current_dialog
     s_gglob.dialog_ui.current_dialog = nil
     s_gglob.dialog_ui.state = DialogUIState.None
+
+    // order is important here in case the dialog complete starts a new dialog
+    if dialog_out.on_dialog_complete != nil {
+        dialog_out.on_dialog_complete()
+    }
 }

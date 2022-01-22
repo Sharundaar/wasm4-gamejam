@@ -18,7 +18,7 @@ InventoryUIData :: struct {
 s_InventoryUIData := InventoryUIData {
 	{
 		{ 0, 5, 0x2140 },
-		{ 5, 5, 0x2143 },
+		{ 5, 5, 0x2043 },
 	},
 }
 

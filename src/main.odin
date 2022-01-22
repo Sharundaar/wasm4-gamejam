@@ -10,7 +10,7 @@ SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
 START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
-NO_CLIP :: false
+NO_CLIP :: true
 
 import "w4"
 import "core:math"
@@ -43,6 +43,10 @@ rect :: struct {
 	min, max: ivec2,
 }
 
+extract_ivec2 :: proc "contextless" ( v: ivec2 ) -> ( i32, i32 ) {
+	return v.x, v.y
+}
+
 translate_rect :: proc "contextless" ( r: rect, v: ivec2 ) -> rect {
 	return {
 		r.min + v,
@@ -63,6 +67,7 @@ GameState :: enum {
 	Dialog,
 	NewItemAnimation,
 	GameOverAnimation,
+	Cinematic,
 }
 
 InputState :: struct {
@@ -86,13 +91,13 @@ GameGlob :: struct {
 	quest_data: QuestData,
 	darkness_enabled: bool,
 	last_valid_player_position : ivec2,
+	cinematic_controller: CinematicController,
 }
 s_gglob : GameGlob
 
 GlobalCoordinates :: struct {
 	chunk: ivec2,
 	offsets: ivec2,
-	// sub_pixel_offset: i8vec2, // when reach 100, regularize offsets to + 1, used for small movements
 }
 
 RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates, move_chunks := true ) -> GlobalCoordinates {
@@ -333,14 +338,10 @@ MakeWorldMap :: proc "contextless" () {
 	EnablePopulateFunc( &ents_c11 )
 	}
 
-	EnablePopulateFunc( &ents_entrance )
-	EnablePopulateFunc( &ents_entrance_right )
-	EnablePopulateFunc( &ents_mirus_room )
-	EnablePopulateFunc( &ents_bats_room )
-	EnablePopulateFunc( &ents_corridor_to_tom )
-	EnablePopulateFunc( &ents_sword_altar_room )
-	EnablePopulateFunc( &ents_torch_chest_room )
-
+	for p in populate_funcs {
+		EnablePopulateFunc( p )
+	}
+	
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
 }
@@ -363,7 +364,11 @@ start :: proc "c" () {
 			player.position.offsets = { 76, 76 }
 		} else {
 			// official entrance
-			player.position.chunk = { 0, 3 }
+			// player.position.chunk = { 0, 3 }
+			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+
+			// tom room
+			player.position.chunk = { 3, 2 }
 			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// sword altar room
@@ -513,6 +518,7 @@ update :: proc "c" () {
 		DrawStatusUI()
 		Dialog_Update()
 		NewItemAnimation_Update()
+		Cinematic_Update( &s_gglob.cinematic_controller )
 
 		when SHOW_LAST_VALID_POSITION {
 			DrawRect( { s_gglob.last_valid_player_position + { 2, 2 }, s_gglob.last_valid_player_position + { 6, 6 } } )

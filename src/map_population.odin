@@ -103,7 +103,7 @@ ents_entrance_right := PopulateData{
 ents_mirus_room := PopulateData {
 	2, 3,
 	proc "contextless" () {
-		if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+		if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) || ( Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 ) ){
 			UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
 		} else {
 			miru := MakeMiruEntity()
@@ -128,19 +128,34 @@ ents_bats_room := PopulateData{
 			}
 		}
 	
-		if !Quest_IsComplete( .KilledBat1 ) {
-			MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = on_bat_death
-		}
-		if !Quest_IsComplete( .KilledBat2 ) {
-			MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = on_bat_death
-		}
-		if !Quest_IsComplete( .KilledBat3 ) {
-			MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = on_bat_death
+		if !(Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 )) {
+			if !Quest_IsComplete( .KilledBat1 ) {
+				MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = on_bat_death
+			}
+			if !Quest_IsComplete( .KilledBat2 ) {
+				MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = on_bat_death
+			}
+			if !Quest_IsComplete( .KilledBat3 ) {
+				MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = on_bat_death
+			}
+		} else {
+			father := MakeBatEntity( GetTileWorldCoordinate2( 7, 6 ) ) ; father.name = .Default ; father.flags -= {.DamageMaker, .DamageReceiver}
+			mother := MakeBatEntity( extract_ivec2( GetTileWorldCoordinate( 7, 6 ) + { 6, 4 } ) ) ; mother.name = .Default ; mother.flags -= {.DamageMaker, .DamageReceiver}
+			dolores := MakeBatEntity( extract_ivec2( GetTileWorldCoordinate( 7, 6 ) + { -6, 4 } ) ) ; dolores.name = .Default ; dolores.flags -= {.DamageMaker, .DamageReceiver}
 		}
 	
-		if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
+		if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) || (Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 )) {
 			miru := MakeMiruEntity()
 			miru.position.offsets = GetTileWorldCoordinate( 2, 1 )
+		}
+
+		if Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 ) {
+			tom := MakeTomEntity()
+			tom.position.offsets = GetTileWorldCoordinate( 2, 2 )
+			tom.flags += {.Interactible}
+			tom.interaction = &TomDialog_ConfrontMiru
+			miru := GetEntityByName( .Miru )
+			miru.interaction = &TomDialog_ConfrontMiru
 		}
 	},
 }
@@ -151,6 +166,22 @@ ents_corridor_to_tom := PopulateData {
 		DisableAllLightsAndEnableDarkness()
 		EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 7 ), 2, 0.5 )
 		EnableLight( 2, GetTileWorldCoordinateMidPoint( 6, 0 ), 4, 0.5 )
+	},
+}
+
+ents_toms_room := PopulateData {
+	3, 2,
+	proc "contextless" () {
+		if !Quest_IsComplete( .TalkedToTom ) {
+			tom := MakeTomEntity()
+			tom.position.offsets = GetTileWorldCoordinate( 2, 1 )
+			tom.flags += {.Interactible}
+			if Quest_IsComplete( .KilledBat3 ) {
+				tom.interaction = &TomDialog_BatDead
+			} else {
+				tom.interaction = &TomDialog_BatAlive
+			}
+		}
 	},
 }
 
@@ -181,4 +212,16 @@ ents_torch_chest_room := PopulateData{
 		EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ), 2 )
 		EnableLight( 4, GetTileWorldCoordinateMidPoint( 8, 2 ), 2 )
 	},
+}
+
+
+populate_funcs := []^PopulateData {
+	&ents_entrance,
+	&ents_entrance_right,
+	&ents_mirus_room,
+	&ents_bats_room,
+	&ents_corridor_to_tom,
+	&ents_sword_altar_room,
+	&ents_torch_chest_room,
+	&ents_toms_room,
 }

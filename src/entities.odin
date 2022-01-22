@@ -72,7 +72,7 @@ MirusDialog := DialogDef {
 		{ "Oh hi !", "you're new ?" },
 		{ "Can you give", "me a hand ?" },
 		{ "Kill the bats", "south of here" },
-        { "There's a sword", "east of here" },
+		{ "There's a sword", "east of here" },
 	},
 	nil,
 }
@@ -116,6 +116,110 @@ MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	} else if Quest_AreComplete( {.KilledBat1, .KilledBat2, .KilledBat3} ) {
 		ent.interaction = &MirusDialog_KilledBat
 	}
+
+	return ent
+}
+
+/*
+****************************
+*           Tom            *
+****************************
+*/
+
+TomCinematic_BatAlive := Cinematic {
+    {
+        {Cinematic_MoveEntityStep( .Tom, 2, 3, 45 )},
+        {Cinematic_MoveEntityStep( .Tom, -1, 3, 60 )},
+        {proc "contextless" (controller: ^CinematicController) -> bool {
+            DestroyEntity( GetEntityByName( .Tom ) )
+            return true
+        }},
+    },
+}
+
+TomCinematic_BatDead := Cinematic {
+    {
+        {Cinematic_MoveEntityStep( .Tom, 7, 6, 60 )},
+        {Cinematic_MoveEntityStep( .Tom, 10, 6, 30 )},
+        {proc "contextless" (controller: ^CinematicController) -> bool {
+            DestroyEntity( GetEntityByName( .Tom ) )
+            return true
+        }},
+    },
+}
+
+
+
+TomSprite := AnimatedSprite {
+	ImageKey.tom, 16, 16, 0,
+	{
+		AnimationFrame{ 50, 0, nil },
+		AnimationFrame{ 50, 0, {.FlipX} },
+	},
+}
+TomDialog_BatDead := DialogDef {
+	"Tom",
+	{
+		{ "YOU DID WHAT ?!", "" },
+		{ "THE ECOSYSTEM !", "" },
+		{ "THE GROTTO !", "" },
+	},
+	proc "contextless" () {
+		Cinematic_Play( &TomCinematic_BatDead )
+		Quest_Complete( .TalkedToTom )
+	},
+}
+TomDialog_BatAlive := DialogDef {
+	"Tom",
+	{
+		{ "Hey ! I'm Tom", "What's up" },
+		{ "They asked", "you what ?"},
+		{ "KILL THE BAT ?!", "They're insane" },
+		{ "I'll go", "talk to them" },
+	},
+	proc "contextless" () {
+		// run to bat room
+		Cinematic_Play( &TomCinematic_BatAlive )
+		Quest_Complete( .TalkedToTom )
+	},
+}
+TomDialog_ConfrontMiru := DialogDef {
+	"Tom",
+	{
+		{ "You can't kill", "the bats !" },
+		{ "The grotto ecosystem", "depends on it" },
+	},
+	proc "contextless" () {
+		Dialog_Start( &MirusDialog_FightTom )
+	},
+}
+MirusDialog_FightTom := DialogDef {
+	"Miru",
+	{
+		{ "Do I look", "like I care ?" },
+		{ "They're gross", "" },
+		{ "Get out of", "my face" },
+	},
+	proc "contextless" () {
+		// cinematic
+		Cinematic_Play( &MirusCinematic_FightTom )
+	},
+}
+
+MirusCinematic_FightTom := Cinematic {
+
+}
+
+MakeTomEntity :: proc "contextless" () -> ^Entity {
+	ent := AllocateEntity( EntityName.Tom )
+
+	ent.name = .Tom
+	ent.position = { {}, {} }
+	ent.flags += {.AnimatedSprite, .Collidable}
+	ent.animated_sprite.sprite = &TomSprite
+	ent.looking_dir = { 0, 1 }
+	ent.collider = { { 0, 0 }, { 16, 16 } }
+	ent.palette_mask = 0x1420
 
 	return ent
 }
@@ -212,29 +316,29 @@ MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
 */
 
 SignTomDialog := DialogDef {
-    "Sign",
-    {
-        { "Please, do not", "kill the bats." },
-        { "", "        -- Tom" },
-    },
-    nil,
+	"Sign",
+	{
+		{ "Please, do not", "kill the bats." },
+		{ "", "        -- Tom" },
+	},
+	nil,
 }
 SignSprite := AnimatedSprite {
-    ImageKey.sign, 8, 8, 0,
-    {
-        AnimationFrame{ 0, 0, nil },
-    },
+	ImageKey.sign, 8, 8, 0,
+	{
+		AnimationFrame{ 0, 0, nil },
+	},
 }
 
 MakeSignEntity :: proc "contextless" ( tile_x, tile_y: i32, content: ^DialogDef ) -> ^Entity {
-    ent := AllocateEntity()
+	ent := AllocateEntity()
 
-    ent.flags += {.AnimatedSprite, .Interactible}
-    ent.position = { {}, { tile_x + 4, tile_y + 8 } }
-    ent.interaction = content
-    ent.collider = { {-4, -4}, { 12, 12 } }
-    ent.animated_sprite.sprite = &SignSprite
-    ent.palette_mask = 0x0412
+	ent.flags += {.AnimatedSprite, .Interactible}
+	ent.position = { {}, { tile_x + 4, tile_y + 8 } }
+	ent.interaction = content
+	ent.collider = { {-4, -4}, { 12, 12 } }
+	ent.animated_sprite.sprite = &SignSprite
+	ent.palette_mask = 0x0412
 
-    return ent
+	return ent
 }

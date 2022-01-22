@@ -7,8 +7,9 @@ QuestFlag :: enum u8 {
 	KilledBat3,
 	GotTorch,
 	TalkedToMiruAfterBatDeath,
+	TalkedToTom,
 }
-QuestFlags :: distinct bit_set[QuestFlag; u8]
+QuestFlags :: distinct bit_set[QuestFlag; u16]
 
 QuestData :: struct {
 	quest_flags: QuestFlags,

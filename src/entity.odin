@@ -21,6 +21,7 @@ EntityName :: enum u8 {
 	Default,
 	Player,
 	Miru,
+	Tom,
 	Bat,
 	SwordAltar,
 }
