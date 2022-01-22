@@ -72,6 +72,7 @@ MirusDialog := DialogDef {
 		{ "Oh hi !", "you're new ?" },
 		{ "Can you give", "me a hand ?" },
 		{ "Kill the bats", "south of here" },
+        { "There's a sword", "east of here" },
 	},
 	nil,
 }
