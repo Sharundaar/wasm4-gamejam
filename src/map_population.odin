@@ -87,11 +87,7 @@ ents_entrance := PopulateData{
 	0, 3,
 	proc "contextless" () {
 		DisableAllLightsAndEnableDarkness()
-		EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
-		EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
-		EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ) )
-		EnableLight( 4, GetTileWorldCoordinateMidPoint( 7, 4 ) )
-		EnableLight( 5, GetTileWorldCoordinateMidPoint( 9, 4 ) )
+		EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ), GetTileWorldCoordinateMidPoint( 9, 4 ), 32, 0.5 )
 	},
 }
 
@@ -99,9 +95,8 @@ ents_entrance_right := PopulateData{
 	1, 3,
 	proc "contextless" () {
 		DisableAllLightsAndEnableDarkness()
-		EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
-		EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
-		EnableLight( 3, GetTileWorldCoordinateMidPoint( 9, 4 ), 2, 0.5 )
+		EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 4 ), GetTileWorldCoordinateMidPoint( 6, 4 ), 32, 0.5 )
+		EnableLight( 3, GetTileWorldCoordinate( 10, 0 ), GetTileWorldCoordinate( 10, 9 ), 16, 0.5 )
 	},
 }
 

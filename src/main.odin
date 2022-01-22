@@ -117,21 +117,41 @@ RegularizeCoordinate :: proc "contextless" ( coord: GlobalCoordinates, move_chun
 	return result
 }
 
+LightType :: enum {
+	Point,
+	Tube,
+}
+
 Light :: struct {
 	enabled: bool,
-	pos: ivec2,
+	pos: ivec2, pos2: ivec2,
 	s: f32,
 	r: f32,
+	t: LightType,
 }
 lights : [8]Light
 
 
-EnableLight :: proc "contextless" ( idx: u8, pos: ivec2, s : f32 = 4, r: f32 = 0.125 ) {
+EnableLight :: proc {
+	EnablePointLight,
+	EnableTubeLight,
+}
+EnablePointLight :: proc "contextless" ( idx : u8, pos: ivec2, s: f32 = 4, r: f32 = 0.125 ) {
 	lights[idx].enabled = true
 	lights[idx].pos = pos
 	lights[idx].s = s
 	lights[idx].r = r
+	lights[idx].t = .Point
 }
+EnableTubeLight :: proc "contextless" ( idx: u8, start_pos: ivec2, end_pos: ivec2, s: f32 = 4, r: f32 = 0.125 ) {
+	lights[idx].enabled = true
+	lights[idx].pos = start_pos
+	lights[idx].pos2 = end_pos
+	lights[idx].s = s
+	lights[idx].r = r
+	lights[idx].t = .Tube
+}
+
 DisableAllLightsAndEnableDarkness :: proc "contextless" () {
 	s_gglob.darkness_enabled = true
 	for i in 1..<len(lights) {
@@ -203,13 +223,37 @@ DrawDitherPattern :: proc "contextless" () {
 	w4.DRAW_COLORS^ = 0x0004
 	color_at_px_for_light :: proc "contextless" ( l: Light, x, y: i32 ) -> f32 {
 		if !l.enabled do return 0
-		pxx, pyy := f32(l.pos.x) / DW, f32(l.pos.y) / DH
-		xx, yy := f32(x) / DW, f32(y) / DH
-		xx -= pxx
-		yy -= pyy
-		xx *= l.s
-		yy *= l.s
-		c := math.sqrt(xx*xx+yy*yy)
+		pxx, pyy := f32(l.pos.x) / DW, f32(l.pos.y) / DW
+		xx, yy := f32(x) / DW, f32(y) / DW
+		c : f32
+		switch l.t {
+		case .Point:
+			xx -= pxx
+			yy -= pyy
+			xx *= l.s
+			yy *= l.s
+			c = math.sqrt(xx*xx+yy*yy)
+		case .Tube:
+			v1 := l.pos2 - l.pos
+			v2 := ivec2{ x, y } - l.pos
+			v1f := [2]f32{ f32(v1.x), f32(v1.y) }
+			v2f := [2]f32{ f32(v2.x), f32(v2.y) }
+			t := ( v2f.x*v1f.x + v2f.y*v1f.y ) / ( v1f.x*v1f.x + v1f.y*v1f.y )
+			if t > 1.0 {
+				v2 = ivec2{ x, y } - l.pos2
+				v2f = [2]f32{ f32(v2.x), f32(v2.y) }
+				d_mag := math.sqrt( v2f.x*v2f.x + v2f.y*v2f.y )
+				c = (d_mag / l.s)
+			} else if t < 0.0 {
+				d_mag := math.sqrt( v2f.x*v2f.x + v2f.y*v2f.y )
+				c = (d_mag / l.s)
+			} else {
+				p := [2]f32{ f32(l.pos.x), f32(l.pos.y) } + t*v1f
+				d := [2]f32{ f32(x), f32(y) } - p
+				d_mag := math.sqrt( d.x*d.x + d.y*d.y )
+				c = (d_mag / l.s)
+			}
+		}
 		if c >= 1 do return 0
 		return 1 - c
 	}
@@ -319,12 +363,12 @@ start :: proc "c" () {
 			player.position.offsets = { 76, 76 }
 		} else {
 			// official entrance
-			// player.position.chunk = { 0, 3 }
-			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			player.position.chunk = { 0, 3 }
+			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// sword altar room
-			player.position.chunk = { 3, 4 }
-			player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+			// player.position.chunk = { 3, 4 }
+			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
 
 			// mirus room
 			// player.position.chunk = { 2, 3 }
