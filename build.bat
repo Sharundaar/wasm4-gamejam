@@ -12,7 +12,8 @@ set imgs=img_src\key.png ^
 		 img_src\title_screen.png ^
 		 img_src\half_heart.png ^
 		 img_src\ui_items_icon.png ^
-		 img_src\game_over_screen.png
+		 img_src\game_over_screen.png ^
+		 img_src\sign.png
 w4 png2src --odin %imgs% -t img_src\template.txt -o src\images.odin
 echo build tilemap...
 map_editor\build\map_editor.exe -input "map_editor\build\map.txt" -export "src\tilemap_export.odin"

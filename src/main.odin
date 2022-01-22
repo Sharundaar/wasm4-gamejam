@@ -125,6 +125,20 @@ Light :: struct {
 }
 lights : [8]Light
 
+
+EnableLight :: proc "contextless" ( idx: u8, pos: ivec2, s : f32 = 4, r: f32 = 0.125 ) {
+	lights[idx].enabled = true
+	lights[idx].pos = pos
+	lights[idx].s = s
+	lights[idx].r = r
+}
+DisableAllLightsAndEnableDarkness :: proc "contextless" () {
+	s_gglob.darkness_enabled = true
+	for i in 1..<len(lights) {
+		lights[i].enabled = false
+	}
+}
+
 tiledef := []TileDefinition{
 	{ { 16, 0 }, .Solid }, // wall
 	{ { 16*2, 0 }, .None }, // floor
@@ -132,13 +146,6 @@ tiledef := []TileDefinition{
 	{ { 16, 16 }, .Solid }, // door
 }
 
-BatAnimation := AnimatedSprite {
-	ImageKey.bat, 8, 8, 0,
-	{
-		AnimationFrame{ 15, 0, nil },
-		AnimationFrame{ 15, 8, nil },
-	},
-}
 
 UpdateInputState :: proc "contextless" () {
 	using s_gglob.input_state
@@ -262,356 +269,33 @@ DrawStatusUI :: proc "contextless" () {
 	DrawInventory( INVENTORY_LEFT_OFFSET, INVENTORY_TOP_POSITION, &player.inventory )
 }
 
-MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
-	ent := AllocateEntity( EntityName.Bat )
-
-	ent.name = EntityName.Bat
-	ent.position = { {}, { x, y } }
-	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
-	ent.collider = { {}, {8, 8} }
-	ent.hurt_box = { { 0, 2 }, {8, 7} }
-	ent.animated_sprite.sprite = &BatAnimation
-	ent.health_points = 2
-	ent.palette_mask = 0x130
-	ent.damage_flash_palette = 0x110
-	ent.picked_point = ent.position.offsets
-
-	return ent
-}
-
-MiruAnimation := AnimatedSprite {
-	ImageKey.miru, 16, 16, 0,
-	{
-		AnimationFrame{ 50, 0, nil },
-		AnimationFrame{ 50, 0, {.FlipX} },
-	},
-}
-MirusDialog := DialogDef {
-	"Miru",
-	{
-		{ "Oh hi !", "you're new ?" },
-		{ "Can you give", "me a hand ?" },
-		{ "Kill the bats", "south of here" },
-	},
-	nil,
-}
-MirusDialog_KilledBat := DialogDef {
-	"Miru",
-	{
-		{ "You did it!", "" },
-		{ "Thanks, let me", "open the door"},
-	},
-	proc "contextless" () {
-		if !Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
-			Quest_Complete( .TalkedToMiruAfterBatDeath )
-			UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
-			Sound_Play( &Sound_OpenDoor )
-		}
-	},
-}
-MirusDialog_InBatRoom := DialogDef {
-	"Miru",
-	{
-		{ "*sigh*", "" },
-		{ "Much better now", "that those dirty" },
-		{ "things are dead.", "Go away now." },
-	},
-	nil,
-}
-
 Sound_OpenDoor := Sound {
 	{
 		{ 500, 300, 0, {sustain=10}, .Noise, 25 },
 	},
 }
 
-
-MakeMiruEntity :: proc "contextless" () -> ^Entity {
-	ent := AllocateEntity( EntityName.Miru )
-
-	ent.position = { {}, GetTileWorldCoordinate( 3, 1 ) }
-	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite.sprite = &MiruAnimation
-	ent.looking_dir = { 0, 1 }
-	ent.collider = { { 0, 0 }, { 16, 16 } }
-	ent.palette_mask = 0x0210
-	ent.interaction = &MirusDialog
-	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
-		ent.interaction = &MirusDialog_InBatRoom
-	} else if Quest_AreComplete( {.KilledBat1, .KilledBat2, .KilledBat3} ) {
-		ent.interaction = &MirusDialog_KilledBat
-	}
-
-	return ent
-}
-
-SwordAltarSprite := AnimatedSprite {
-	ImageKey.sword_altar, 5, 7, 0,
-	{
-		AnimationFrame{ 0, 0, nil },
-		AnimationFrame{ 0, 5, nil },
-	},
-}
-SwordAltarContainer := Container {
-	proc "contextless" ( ent_id: u8 ) {
-		altar := GetEntityById( ent_id )
-		altar.flags -= {.Interactible}
-		AnimatedSprite_NextFrame( &altar.animated_sprite )
-		player := GetEntityByName( EntityName.Player )
-		Inventory_GiveNewItem( player, InventoryItem.Sword )
-		Quest_Complete( .GotSword )
-	},
-}
-MakeSwordAltarEntity :: proc "contextless" () -> ^Entity {
-	ent := AllocateEntity( EntityName.SwordAltar )
-
-	ent.position = { {}, GetTileWorldCoordinate( 5, 4 ) }
-	ent.name = EntityName.SwordAltar
-	ent.flags += {.Interactible, .AnimatedSprite, .Collidable}
-	ent.animated_sprite.sprite = &SwordAltarSprite
-	ent.palette_mask = 0x0210
-	ent.collider = { { 0, 0 }, { 5, 7 } }
-	ent.interaction = &SwordAltarContainer
-
-	if Quest_IsComplete( .GotSword ) {
-		player := GetEntityByName( .Player )
-		if player != nil && !Inventory_HasItem( player, .Sword ) {
-			Inventory_GiveNewItem_Immediate( player, .Sword )
-		}
-		ent.flags -= {.Interactible}
-		AnimatedSprite_NextFrame( &ent.animated_sprite )
-	}
-
-	return ent
-}
-
-ents_c00 :: proc "contextless" () {
-	MakeMiruEntity()
-}
-
-ents_c01 :: proc "contextless" () {
-	MakeSwordAltarEntity()
-}
-
-EnableLight :: proc "contextless" ( idx: u8, pos: ivec2, s : f32 = 4, r: f32 = 0.125 ) {
-	lights[idx].enabled = true
-	lights[idx].pos = pos
-	lights[idx].s = s
-	lights[idx].r = r
-}
-
-ents_entrance :: proc "contextless" () {
-	DisableAllLightsAndEnableDarkness()
-	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
-	EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
-	EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ) )
-	EnableLight( 4, GetTileWorldCoordinateMidPoint( 7, 4 ) )
-	EnableLight( 5, GetTileWorldCoordinateMidPoint( 9, 4 ) )
-}
-
-ents_entrance_right :: proc "contextless" () {
-	DisableAllLightsAndEnableDarkness()
-	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ) )
-	EnableLight( 2, GetTileWorldCoordinateMidPoint( 3, 4 ) )
-	EnableLight( 3, GetTileWorldCoordinateMidPoint( 9, 4 ), 2, 0.5 )
-}
-
-ents_mirus_room :: proc "contextless" () {
-	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
-		UpdateTileInChunk( &s_gglob.tilemap, 2, 3, 7, 1, 1 )
-	} else {
-		miru := MakeMiruEntity()
-		miru.position.offsets = GetTileWorldCoordinate( 5, 1 )
-	}
-}
-
-ents_bats_room :: proc "contextless" () {
-	on_bat_death :: proc "contextless" () {
-		if !Quest_IsComplete( .KilledBat1 ) { 
-			Dialog_Start( &BatDeathDialog1 )
-			Quest_Complete( .KilledBat1 )
-		} else if !Quest_IsComplete( .KilledBat2 ) {
-			Dialog_Start( &BatDeathDialog2 )
-			Quest_Complete( .KilledBat2 )
-		} else if !Quest_IsComplete( .KilledBat3 ) {
-			Dialog_Start( &BatDeathDialog3 )
-			Quest_Complete( .KilledBat3 )
-		}
-	}
-
-	if !Quest_IsComplete( .KilledBat1 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = on_bat_death
-	}
-	if !Quest_IsComplete( .KilledBat2 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = on_bat_death
-	}
-	if !Quest_IsComplete( .KilledBat3 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = on_bat_death
-	}
-
-	if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) {
-		miru := MakeMiruEntity()
-		miru.position.offsets = GetTileWorldCoordinate( 2, 1 )
-	}
-}
-
-ents_corridor_to_tom :: proc "contextless" () {
-	DisableAllLightsAndEnableDarkness()
-	EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 7 ), 2, 0.5 )
-}
-
-ents_sword_altar_room :: proc "contextless" () {
-	altar := MakeSwordAltarEntity()
-	altar.position.offsets = GetTileWorldCoordinate( 6, 3 ) - { i32( altar.animated_sprite.sprite.w / 2 ), i32( altar.animated_sprite.sprite.h / 2 ) }
-}
-
-ents_torch_chest_room :: proc "contextless" () {
-	torch_chest := MakeChestEntity( GetTileWorldCoordinate2( 8, 2 ) )
-	if Quest_IsComplete( .GotTorch ) {
-		AnimatedSprite_NextFrame( &torch_chest.animated_sprite )
-	} else {
-		torch_chest.flags += {.Interactible}
-		torch_chest.interaction = &TorchChestContainer
-	}
-
-	DisableAllLightsAndEnableDarkness()
-	EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 7 ), 2 )
-	EnableLight( 2, GetTileWorldCoordinateMidPoint( 8, 7 ), 2 )
-	EnableLight( 3, GetTileWorldCoordinateMidPoint( 5, 4 ), 2 )
-	EnableLight( 4, GetTileWorldCoordinateMidPoint( 8, 2 ), 2 )
-}
-
-BatDeathDialog1 := DialogDef {
-	"Bat",
-	{
-		{ "DOLORES", "NOOOO" },
-	},
-	nil,
-}
-BatDeathDialog2 := DialogDef {
-	"Bat",
-	{
-		{ "she was my wife", "you bastard !" },
-	},
-	nil,
-}
-BatDeathDialog3 := DialogDef {
-	"Bat",
-	{
-		{ "noo", "why did you kill mee" },
-		{ "i had", "a family" },
-	},
-	nil,
-}
-
-ents_c10 :: proc "contextless" () {
-	if !Quest_IsComplete( .KilledBat1 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 8, 6 ) ).on_death = proc "contextless" () {
-			Dialog_Start( &BatDeathDialog3 )
-			Quest_Complete( .KilledBat1 )
-		}
-	}
-	if !Quest_IsComplete( .KilledBat2 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 3, 6 ) ).on_death = proc "contextless" () {
-			Quest_Complete( .KilledBat2 )
-		}
-	}
-	if !Quest_IsComplete( .KilledBat3 ) {
-		MakeBatEntity( GetTileWorldCoordinate2( 4, 2 ) ).on_death = proc "contextless" () {
-			Quest_Complete( .KilledBat3 )
-		}
-	}
-}
-
-TorchChestContainer := Container {
-	proc "contextless" ( ent_id: u8 ) {
-		chest := GetEntityById( ent_id )
-		chest.flags -= {.Interactible}
-		AnimatedSprite_NextFrame( &chest.animated_sprite )
-		player := GetEntityByName( .Player )
-		Inventory_GiveNewItem( player, .Torch)
-		Quest_Complete( .GotTorch )
-	},
-}
-
-DisableAllLightsAndEnableDarkness :: proc "contextless" () {
-	s_gglob.darkness_enabled = true
-	for i in 1..<len(lights) {
-		lights[i].enabled = false
-	}
-}
-
-ents_c11 :: proc "contextless" () {
-	torch_chest := MakeChestEntity( GetTileWorldCoordinate2( 4, 7 ) )
-	if Quest_IsComplete( .GotTorch ) {
-		AnimatedSprite_NextFrame( &torch_chest.animated_sprite )
-	} else {
-		torch_chest.flags += {.Interactible}
-		torch_chest.interaction = &TorchChestContainer
-	}
-
-	DisableAllLightsAndEnableDarkness()
-	lights[1].enabled = true
-	lights[1].pos = GetTileWorldCoordinateMidPoint( 4, 0 )
-	lights[1].s = 4
-	lights[1].r = 0.125
-
-	lights[2].enabled = true
-	lights[2].pos = GetTileWorldCoordinate( 1, 1 )
-	lights[2].s = 4
-	lights[2].r = 0.125
-
-	lights[3].enabled = true
-	lights[3].pos = GetTileWorldCoordinateMidPoint( 1, 5 )
-	lights[3].s = 4
-	lights[3].r = 0.125
-	
-	lights[4].enabled = true
-	lights[4].pos = GetTileWorldCoordinate( 7, 5 )
-	lights[4].s = 4
-	lights[4].r = 0.125
-
-	lights[5].enabled = true
-	lights[5].pos = GetTileWorldCoordinateMidPoint( 4, 7 )
-	lights[5].s = 4
-	lights[5].r = 0.125
-}
-
-ChestSprite := AnimatedSprite {
-	ImageKey.chest, 8, 8, 0,
-	{
-		AnimationFrame{ 0, 0, nil },
-		AnimationFrame{ 0, 8, nil },
-	},
-}
-MakeChestEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
-	ent := AllocateEntity()
-
-	ent.position = { {}, { x + 4, y + 4 } }
-	ent.flags += { .AnimatedSprite, .Collidable }
-	ent.animated_sprite.sprite = &ChestSprite
-	ent.palette_mask = 0x4320
-	ent.collider = { { 0, 0 }, { 8, 8 } }
-
-	return ent
-}
-
 MakeWorldMap :: proc "contextless" () {
 	using s_gglob
 
 	tilemap.chunks = tilemap_chunks[:]
-	GetChunkFromChunkCoordinates( &tilemap, 0, 0 ).populate_function = ents_c00
-	GetChunkFromChunkCoordinates( &tilemap, 1, 0 ).populate_function = ents_c01
-	GetChunkFromChunkCoordinates( &tilemap, 0, 1 ).populate_function = ents_c10
-	GetChunkFromChunkCoordinates( &tilemap, 1, 1 ).populate_function = ents_c11
+	EnablePopulateFunc :: proc "contextless" ( data: ^PopulateData ) {
+		GetChunkFromChunkCoordinates( &tilemap, i32(data.chunk_x), i32(data.chunk_y) ).populate_function = data.populate_func
+	}
+	when USE_TEST_MAP {
+	EnablePopulateFunc( &ents_c00 )
+	EnablePopulateFunc( &ents_c01 )
+	EnablePopulateFunc( &ents_c10 )
+	EnablePopulateFunc( &ents_c11 )
+	}
 
-	GetChunkFromChunkCoordinates( &tilemap, 0, 3 ).populate_function = ents_entrance
-	GetChunkFromChunkCoordinates( &tilemap, 1, 3 ).populate_function = ents_entrance_right
-	GetChunkFromChunkCoordinates( &tilemap, 2, 3 ).populate_function = ents_mirus_room
-	GetChunkFromChunkCoordinates( &tilemap, 2, 4 ).populate_function = ents_bats_room
-	GetChunkFromChunkCoordinates( &tilemap, 3, 3 ).populate_function = ents_corridor_to_tom
-	GetChunkFromChunkCoordinates( &tilemap, 3, 4 ).populate_function = ents_sword_altar_room
-	GetChunkFromChunkCoordinates( &tilemap, 4, 2 ).populate_function = ents_torch_chest_room
+	EnablePopulateFunc( &ents_entrance )
+	EnablePopulateFunc( &ents_entrance_right )
+	EnablePopulateFunc( &ents_mirus_room )
+	EnablePopulateFunc( &ents_bats_room )
+	EnablePopulateFunc( &ents_corridor_to_tom )
+	EnablePopulateFunc( &ents_sword_altar_room )
+	EnablePopulateFunc( &ents_torch_chest_room )
 
 	tilemap.tileset = GetImage( ImageKey.tileset )
 	tilemap.tiledef = tiledef
