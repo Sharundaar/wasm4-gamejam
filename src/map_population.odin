@@ -318,8 +318,8 @@ ents_torch_chest_room := PopulateData{
 			torch_chest.interaction = &TorchChestContainer
 		}
 
-		if !Quest_IsComplete( .TalkedToTom ) {
-			UpdateTileInChunk( &s_gglob.tilemap, 4, 2, 2, 0, 3 )
+		if Quest_AreComplete( {.TalkedToTom, .KilledBat3} ) {
+			UpdateTileInChunk( &s_gglob.tilemap, 4, 2, 2, 0, 1 )
 		}
 	
 		DisableAllLightsAndEnableDarkness()
