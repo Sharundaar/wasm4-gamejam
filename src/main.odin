@@ -384,6 +384,44 @@ MakeWorldMap :: proc "contextless" () {
 	tilemap.tiledef = tiledef
 }
 
+InitPlayer :: proc "contextless" () {
+	player := MakePlayer()
+	when USE_TEST_MAP {
+		player.position.chunk = { 0, 0 }
+		player.position.offsets = { 76, 76 }
+	} else {
+		// official entrance
+		player.position.chunk = { 0, 3 }
+		player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+
+		// tom room
+		// player.position.chunk = { 3, 2 }
+		// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+
+		// sword altar room
+		// player.position.chunk = { 3, 4 }
+		// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+		// mirus boss room
+		// player.position.chunk = { 1, 4 }
+		// player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
+
+		// toms boss room
+		// player.position.chunk = { 4, 1 }
+		// player.position.offsets = GetTileWorldCoordinate( 2, 8 ) + { 2, 2 }
+		// Quest_Complete( .KilledBat3 )
+
+		// mirus room
+		// player.position.chunk = { 2, 3 }
+		// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+		// Quest_Complete( .KilledBat1 )
+		// Quest_Complete( .KilledBat2 )
+		// Quest_Complete( .KilledBat3 )
+	}
+	s_gglob.last_valid_player_position = player.position.offsets
+}
+
 @export
 start :: proc "c" () {
 	using s_gglob
@@ -395,43 +433,7 @@ start :: proc "c" () {
 	(w4.PALETTE^)[2] = 0xc23a73
 	(w4.PALETTE^)[3] = 0x2c1e74
 
-	{
-		player := MakePlayer()
-		when USE_TEST_MAP {
-			player.position.chunk = { 0, 0 }
-			player.position.offsets = { 76, 76 }
-		} else {
-			// official entrance
-			// player.position.chunk = { 0, 3 }
-			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
-
-			// tom room
-			player.position.chunk = { 3, 2 }
-			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
-
-			// sword altar room
-			// player.position.chunk = { 3, 4 }
-			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
-
-			// mirus boss room
-			// player.position.chunk = { 1, 4 }
-			// player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
-
-			// toms boss room
-			// player.position.chunk = { 4, 1 }
-			// player.position.offsets = GetTileWorldCoordinate( 2, 8 ) + { 2, 2 }
-			// Quest_Complete( .KilledBat3 )
-
-			// mirus room
-			// player.position.chunk = { 2, 3 }
-			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
-
-			// Quest_Complete( .KilledBat1 )
-			// Quest_Complete( .KilledBat2 )
-			// Quest_Complete( .KilledBat3 )
-		}
-		s_gglob.last_valid_player_position = player.position.offsets
-	}
+	InitPlayer()
 	active_chunk_coords = { -1, -1 }
 
 	MakeWorldMap()
@@ -523,7 +525,7 @@ GameOverAnimation_Update :: proc "contextless" () {
 		}
 	}
 	if player.animated_sprite.current_frame == 2 && player.animated_sprite.frame_counter >= 60 && s_gglob.fading_counter == 0 { // Hack, animation technically stops at 70 but we only need 60 frames
-		StartFade( proc "contextless" () { s_gglob.game_state = .GameOverScreen } )
+		StartFade( proc "contextless" () { DestroyEntity( GetEntityByName( .Player ) ) ; s_gglob.game_state = .GameOverScreen } )
 	}
 }
 
@@ -545,6 +547,10 @@ update :: proc "c" () {
 		w4.DRAW_COLORS^ = 0x2431
 		game_over_screen := GetImage( ImageKey.game_over_screen )
 		w4.blit( &game_over_screen.bytes[0], 0, 0, u32( game_over_screen.w ), u32( game_over_screen.h ), game_over_screen.flags )
+		if s_gglob.input_state.APressed && s_gglob.fading_counter == 0 {
+			InitPlayer()
+			StartFade( proc "contextless" () { s_gglob.game_state = .Game } )
+		}
 	} else if s_gglob.game_state == .EndingMiruScreen {
 		w4.DRAW_COLORS^ = 0x1111
 		title_screen := GetImage( ImageKey.title_screen )
