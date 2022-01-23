@@ -163,6 +163,9 @@ UpdatePlayer :: proc "contextless" ( using entity: ^Entity ) {
 				entity.falling_frame_counter = 1
 			}
 		} else {
+			if entity.falling_frame_counter > 0 {
+				entity.falling_frame_counter = 0
+			}
 			if received_damage == 0 { // damage received means pushed_back so no movement here
 				if .LEFT in w4.GAMEPAD1^ {
 					dir.x -= 1

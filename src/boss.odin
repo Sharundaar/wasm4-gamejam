@@ -121,6 +121,8 @@ MirusBossDeath :: proc "contextless" () {
 	dead_miru.position.offsets = miru.position.offsets
 	dead_miru.palette_mask = 0x0210
 
+	miru.position.offsets = GetTileWorldCoordinate( 4, 1 )
+
 	Cinematic_Play( &MirusDeathCinematic )
 }
 

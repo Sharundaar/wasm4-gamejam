@@ -7,10 +7,10 @@ SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: true
-START_WITH_SWORD :: true
+SKIP_INTRO :: false
+START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
-NO_CLIP :: true
+NO_CLIP :: false
 
 import "w4"
 import "core:math"
@@ -203,9 +203,10 @@ DisableDarkness :: proc "contextless" () {
 
 tiledef := []TileDefinition{
 	{ { 16, 0 }, .Solid }, // wall
-	{ { 16*2, 0 }, .None }, // floor
+	{ { 32, 0 }, .None }, // floor
 	{ { 0, 16 }, .Hole }, // hole
 	{ { 16, 16 }, .Solid }, // door
+	{ { 32, 16 }, .Solid }, // outside
 }
 
 
@@ -419,6 +420,20 @@ InitPlayer :: proc "contextless" () {
 		// Quest_Complete( .KilledBat2 )
 		// Quest_Complete( .KilledBat3 )
 	}
+
+	if Quest_IsComplete( .GotSword ) {
+		Inventory_GiveNewItem_Immediate( player, .Sword )
+	}
+	if Quest_IsComplete( .GotTorch ) {
+		Inventory_GiveNewItem_Immediate( player, .Torch )
+	}
+	if Quest_IsComplete( .GotHeartContainer ) {
+		Inventory_GiveNewItem_Immediate( player, .Heart )
+	}
+
+	s_MiruBossData = {}
+	s_TomBossData = {}
+
 	s_gglob.last_valid_player_position = player.position.offsets
 }
 
@@ -572,6 +587,7 @@ update :: proc "c" () {
 		w4.text( "Maybe for the worse", 5, 70 )
 		w4.text( "There might be", 25, 110 )
 		w4.text( "something else", 25, 120 )
+		w4.text( "Restart with R", 25, 145 )
 	} else {
 		player := GetEntityByName( EntityName.Player )
 		if player != nil && player.position.chunk != active_chunk_coords {

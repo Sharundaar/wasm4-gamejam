@@ -82,12 +82,28 @@ ents_c11 := PopulateData{
 }
 }
 
+EntranceDialog := DialogDef {
+	"",
+	{
+		{"I can't leave", "there's still"},
+		{"adventures", "to do !!"},
+	},
+	nil,
+}
+
 
 ents_entrance := PopulateData{
 	0, 3,
 	proc "contextless" () {
 		DisableAllLightsAndEnableDarkness()
-		EnableLight( 1, GetTileWorldCoordinateMidPoint( 1, 4 ), GetTileWorldCoordinateMidPoint( 9, 4 ), 32, 0.5 )
+		EnableLight( 1, GetTileWorldCoordinateMidPoint( 0, 4 ), GetTileWorldCoordinateMidPoint( 9, 4 ), 32, 0.5 )
+		EnableLight( 2, GetTileWorldCoordinate( 0, 2 ), GetTileWorldCoordinate( 0, 7 ), 32, 0.5 )
+
+		entrance_dialog := AllocateEntity()
+		entrance_dialog.position.offsets = GetTileWorldCoordinate( 0, 4 )
+		entrance_dialog.collider = {{}, GetTileWorldCoordinate( 1, 5 ) }
+		entrance_dialog.flags += {.Interactible}
+		entrance_dialog.interaction = &EntranceDialog
 	},
 }
 
@@ -164,8 +180,6 @@ ents_bats_room := PopulateData{
 				tom.animated_sprite.sprite = &TomSprite_Back
 				miru := GetEntityByName( .Miru )
 				miru.interaction = &TomDialog_ConfrontMiru
-				miru.flags -= {.Interactible, .Collidable}
-				miru.flags += {.DamageMaker, .DamageReceiver}
 			}
 		}
 	},
