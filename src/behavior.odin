@@ -19,13 +19,10 @@ RandBetween :: proc "contextless" ( a, b: i32 ) -> i32 {
 	return i32(rnd * f32( b - a ) + f32(a))
 }
 
-UpdateBatBehavior :: proc "contextless" ( entity: ^Entity ) {
+UpdateBatBehavior :: proc "contextless" ( entity: ^Entity, force := false ) {
 	if s_gglob.game_state != GameState.Game do return
-	if entity.name != EntityName.Bat do return
+	if !force do if entity.name != .Bat do return
 	if entity.received_damage > 0 do return
-
-	player := GetEntityByName( EntityName.Player )
-	if player == nil do return
 
 	if entity.picked_point == entity.position.offsets && entity.picked_point_counter == 0 {
 		entity.picked_point_counter = u8( RandBetween( 40, 90 ) )
@@ -40,8 +37,8 @@ UpdateBatBehavior :: proc "contextless" ( entity: ^Entity ) {
 	}
 	if entity.picked_point_counter == 0 && entity.picked_point == entity.position.offsets {
 		entity.picked_point = {
-			RandBetween( 0, TILEMAP_CHUNK_W - BAT_W ),
-			RandBetween( 0, TILEMAP_CHUNK_H - BAT_H ),
+			RandBetween( 16, TILEMAP_CHUNK_W - rect_width(entity.collider) - 16 ),
+			RandBetween( 16, TILEMAP_CHUNK_H - rect_height(entity.collider) - 16 ),
 		}
 		print_int( entity.picked_point.x )
 		print_int( entity.picked_point.y )

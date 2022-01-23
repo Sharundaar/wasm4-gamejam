@@ -110,6 +110,7 @@ MakeMiruEntity :: proc "contextless" () -> ^Entity {
 	ent.looking_dir = { 0, 1 }
 	ent.collider = { { 0, 0 }, { 16, 16 } }
 	ent.palette_mask = 0x0210
+	ent.damage_flash_palette = 0x0120
 	ent.interaction = &MirusDialog
 	ent.max_health_points = 30
 	ent.health_points = 30

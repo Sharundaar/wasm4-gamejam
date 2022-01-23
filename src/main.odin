@@ -3,12 +3,12 @@ package main
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
 USE_TEST_MAP :: false
-SHOW_HURT_BOX :: true
+SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: true
-START_WITH_SWORD :: true
+SKIP_INTRO :: false
+START_WITH_SWORD :: false
 TEST_DEATH_ANIMATION :: false
 NO_CLIP :: false
 
@@ -43,6 +43,18 @@ rect :: struct {
 	min, max: ivec2,
 }
 
+rect_size :: proc "contextless" ( v:rect ) -> ivec2 {
+	return { rect_width( v ), rect_height( v ) }
+}
+
+rect_width :: proc "contextless" ( v: rect ) -> i32 {
+	return v.max.x - v.min.x
+}
+
+rect_height :: proc "contextless" ( v: rect ) -> i32 {
+	return v.max.y - v.min.y
+}
+
 extract_ivec2 :: proc "contextless" ( v: ivec2 ) -> ( i32, i32 ) {
 	return v.x, v.y
 }
@@ -63,6 +75,8 @@ normalize_vec2 :: proc "contextless" ( v: ivec2 ) -> [2]f32 {
 GameState :: enum {
 	MainMenu,
 	GameOverScreen,
+	EndingMiruScreen,
+	EndingTomScreen,
 	Game,
 	Dialog,
 	NewItemAnimation,
@@ -157,11 +171,34 @@ EnableTubeLight :: proc "contextless" ( idx: u8, start_pos: ivec2, end_pos: ivec
 	lights[idx].t = .Tube
 }
 
+EnableFirstAvailableLight :: proc "contextless" ( pos: ivec2, s: f32 = 4, r: f32 = 0.125 ) -> u8 {
+	for l, i in &lights { // ignore 0 as it's the player's light
+		if i == 0 do continue
+		if !l.enabled {
+			EnablePointLight( u8(i), pos, s, r )
+			return u8(i)
+		}
+	}
+	return 1
+}
+
+SetLightPosition :: proc "contextless" ( idx: u8, pos: ivec2 ) {
+	lights[idx].pos = pos
+}
+
+DisableLight :: proc "contextless" ( idx: u8 ) {
+	lights[idx].enabled = false
+}
+
 DisableAllLightsAndEnableDarkness :: proc "contextless" () {
 	s_gglob.darkness_enabled = true
 	for i in 1..<len(lights) {
 		lights[i].enabled = false
 	}
+}
+
+DisableDarkness :: proc "contextless" () {
+	s_gglob.darkness_enabled = false
 }
 
 tiledef := []TileDefinition{
@@ -364,8 +401,8 @@ start :: proc "c" () {
 			player.position.offsets = { 76, 76 }
 		} else {
 			// official entrance
-			// player.position.chunk = { 0, 3 }
-			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			player.position.chunk = { 0, 3 }
+			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// tom room
 			// player.position.chunk = { 3, 2 }
@@ -376,8 +413,8 @@ start :: proc "c" () {
 			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
 
 			// mirus boss room
-			player.position.chunk = { 1, 4 }
-			player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
+			// player.position.chunk = { 1, 4 }
+			// player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
 
 			// mirus room
 			// player.position.chunk = { 2, 3 }
@@ -502,6 +539,27 @@ update :: proc "c" () {
 		w4.DRAW_COLORS^ = 0x2431
 		game_over_screen := GetImage( ImageKey.game_over_screen )
 		w4.blit( &game_over_screen.bytes[0], 0, 0, u32( game_over_screen.w ), u32( game_over_screen.h ), game_over_screen.flags )
+	} else if s_gglob.game_state == .EndingMiruScreen {
+		w4.DRAW_COLORS^ = 0x1111
+		title_screen := GetImage( ImageKey.title_screen )
+		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
+		w4.DRAW_COLORS^ = 0x0002
+		w4.text( "You defeated Miru", 12, 10 )
+		w4.text( "The grotto grows", 15, 40 )
+		w4.text( "quieter", 160 / 2 - 25, 50 )
+		w4.text( "Maybe for the best", 10, 70 )
+		w4.text( "Thanks for playing !", 2, 110 )
+	} else if s_gglob.game_state == .EndingTomScreen {
+		w4.DRAW_COLORS^ = 0x4444
+		title_screen := GetImage( ImageKey.title_screen )
+		w4.blit( &title_screen.bytes[0], 0, 0, u32( title_screen.w ), u32( title_screen.h ), title_screen.flags )
+		w4.DRAW_COLORS^ = 0x0003
+		w4.text( "You defeated Tom", 14, 10 )
+		w4.text( "The grotto grows", 15, 40 )
+		w4.text( "quieter", 160 / 2 - 25, 50 )
+		w4.text( "Maybe for the worse", 5, 70 )
+		w4.text( "There might be", 25, 110 )
+		w4.text( "something else", 25, 120 )
 	} else {
 		player := GetEntityByName( EntityName.Player )
 		if player != nil && player.position.chunk != active_chunk_coords {
@@ -519,8 +577,6 @@ update :: proc "c" () {
 		lights[0].s = 3
 	
 		GameOverAnimation_Update()
-		DrawStatusUI()
-		Dialog_Update()
 		NewItemAnimation_Update()
 		Cinematic_Update( &s_gglob.cinematic_controller )
 
@@ -532,6 +588,9 @@ update :: proc "c" () {
 		if s_gglob.darkness_enabled {
 			DrawDitherPattern()
 		}
+
+		DrawStatusUI()
+		Dialog_Update()
 	}
 
 	Sound_Update()

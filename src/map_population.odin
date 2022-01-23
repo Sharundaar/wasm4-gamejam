@@ -193,14 +193,16 @@ ents_mirus_boss_room := PopulateData {
 		miru := MakeMiruEntity()
 		miru.name = .MiruBoss
 		miru.position.offsets = GetTileWorldCoordinate( 4, 1 )
-		miru.flags -= {.Interactible}
+		miru.flags -= {.Interactible, .Collidable}
 		miru.flags += {.DamageMaker, .DamageReceiver}
+		miru.picked_point = miru.position.offsets
+		miru.on_death = MirusBossDeath
 
 		boss_start_trigger := AllocateEntity()
 		boss_start_trigger.flags += {.Interactible}
 		boss_start_trigger.interaction = &MiruBossStartInteraction
 		boss_start_trigger.collider = {GetTileWorldCoordinate(8, 7), GetTileWorldCoordinate(9, 8)}
-		boss_start_trigger.collider.max.x -= 9
+		boss_start_trigger.collider.max.x -= 7
 	},
 }
 
