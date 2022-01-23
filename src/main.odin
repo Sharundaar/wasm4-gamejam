@@ -3,14 +3,14 @@ package main
 DEVELOPMENT_BUILD :: false
 PRINT_FUNC :: false
 USE_TEST_MAP :: false
-SHOW_HURT_BOX :: false
+SHOW_HURT_BOX :: true
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
 SKIP_INTRO :: true
-START_WITH_SWORD :: false
+START_WITH_SWORD :: true
 TEST_DEATH_ANIMATION :: false
-NO_CLIP :: true
+NO_CLIP :: false
 
 import "w4"
 import "core:math"
@@ -368,12 +368,16 @@ start :: proc "c" () {
 			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// tom room
-			player.position.chunk = { 3, 2 }
-			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			// player.position.chunk = { 3, 2 }
+			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// sword altar room
 			// player.position.chunk = { 3, 4 }
 			// player.position.offsets = GetTileWorldCoordinate( 4, 2 ) + { 2, 4 }
+
+			// mirus boss room
+			player.position.chunk = { 1, 4 }
+			player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
 
 			// mirus room
 			// player.position.chunk = { 2, 3 }

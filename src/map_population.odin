@@ -143,20 +143,64 @@ ents_bats_room := PopulateData{
 			mother := MakeBatEntity( extract_ivec2( GetTileWorldCoordinate( 7, 6 ) + { 6, 4 } ) ) ; mother.name = .Default ; mother.flags -= {.DamageMaker, .DamageReceiver}
 			dolores := MakeBatEntity( extract_ivec2( GetTileWorldCoordinate( 7, 6 ) + { -6, 4 } ) ) ; dolores.name = .Default ; dolores.flags -= {.DamageMaker, .DamageReceiver}
 		}
-	
-		if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) || (Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 )) {
-			miru := MakeMiruEntity()
-			miru.position.offsets = GetTileWorldCoordinate( 2, 1 )
-		}
 
-		if Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 ) {
+		if Quest_IsComplete( .SawMirusFightCinematic ) {
 			tom := MakeTomEntity()
-			tom.position.offsets = GetTileWorldCoordinate( 2, 2 )
+			tom.position.offsets = GetTileWorldCoordinate( 1, 4 )
 			tom.flags += {.Interactible}
-			tom.interaction = &TomDialog_ConfrontMiru
-			miru := GetEntityByName( .Miru )
-			miru.interaction = &TomDialog_ConfrontMiru
+			tom.interaction = &TomDialog_AfterMirusConfrontation
+			tom.animated_sprite.sprite = &TomSprite_Hurt
+		} else {
+			if Quest_IsComplete( .TalkedToMiruAfterBatDeath ) || (Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 )) {
+				miru := MakeMiruEntity()
+				miru.position.offsets = GetTileWorldCoordinate( 2, 1 )
+			}
+	
+			if Quest_IsComplete( .TalkedToTom ) && !Quest_IsComplete( .KilledBat3 ) {
+				tom := MakeTomEntity()
+				tom.position.offsets = GetTileWorldCoordinate( 2, 2 )
+				tom.flags += {.Interactible}
+				tom.interaction = &TomDialog_ConfrontMiru
+				tom.animated_sprite.sprite = &TomSprite_Back
+				miru := GetEntityByName( .Miru )
+				miru.interaction = &TomDialog_ConfrontMiru
+				miru.flags -= {.Interactible, .Collidable}
+				miru.flags += {.DamageMaker, .DamageReceiver}
+			}
 		}
+	},
+}
+
+MiruBossStartInteraction := Trigger {
+	proc "contextless" (ent_id: u8) {
+		UpdateTileInChunk( &s_gglob.tilemap, 1, 4, 9, 7, 3 )
+		Sound_Play( &Sound_OpenDoor )
+		Dialog_Start( &MiruBossDialog )
+		DestroyEntity( GetEntityById( ent_id ) )
+	},
+}
+MiruBossDialog := DialogDef {
+	"Miru",
+	{{"blah blah", "let's fight"}},
+	proc "contextless" () {
+		StartMiruBoss()
+	},
+}
+
+ents_mirus_boss_room := PopulateData {
+	1, 4,
+	proc "contextless" () {
+		miru := MakeMiruEntity()
+		miru.name = .MiruBoss
+		miru.position.offsets = GetTileWorldCoordinate( 4, 1 )
+		miru.flags -= {.Interactible}
+		miru.flags += {.DamageMaker, .DamageReceiver}
+
+		boss_start_trigger := AllocateEntity()
+		boss_start_trigger.flags += {.Interactible}
+		boss_start_trigger.interaction = &MiruBossStartInteraction
+		boss_start_trigger.collider = {GetTileWorldCoordinate(8, 7), GetTileWorldCoordinate(9, 8)}
+		boss_start_trigger.collider.max.x -= 9
 	},
 }
 
@@ -224,4 +268,5 @@ populate_funcs := []^PopulateData {
 	&ents_sword_altar_room,
 	&ents_torch_chest_room,
 	&ents_toms_room,
+	&ents_mirus_boss_room,
 }

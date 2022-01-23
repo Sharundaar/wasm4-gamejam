@@ -8,6 +8,7 @@ QuestFlag :: enum u8 {
 	GotTorch,
 	TalkedToMiruAfterBatDeath,
 	TalkedToTom,
+	SawMirusFightCinematic,
 }
 QuestFlags :: distinct bit_set[QuestFlag; u16]
 

@@ -45,13 +45,17 @@ lerp :: proc "contextless" ( a, b: ivec2, t: f32 ) -> ivec2 {
     return c
 }
 
-Cinematic_MoveEntityStep :: proc( $ent_name: EntityName, $target_x: i32, $target_y: i32, $length: u8 ) -> proc "contextless" ( controller: ^CinematicController ) -> bool {
+Cinematic_MoveEntityStep :: proc "contextless" ( $ent_name: EntityName, $target_x: i32, $target_y: i32, $length: u8, $absolute_pos: bool ) -> proc "contextless" ( controller: ^CinematicController ) -> bool {
     return proc "contextless" ( controller: ^CinematicController ) -> bool {
         tom := GetEntityByName( ent_name )
         if controller.frame_counter == 0 {
             tom.pushed_back_cached_pos = tom.position.offsets
         }
-        target := GetTileWorldCoordinate( target_x, target_y )
+        when absolute_pos {
+            target := ivec2{ target_x, target_y }
+        } else {
+            target := GetTileWorldCoordinate( target_x, target_y )
+        }
         t := f32( controller.frame_counter ) / f32(length)
         l := lerp( tom.pushed_back_cached_pos, target, t )
         tom.position.offsets = l

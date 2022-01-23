@@ -24,6 +24,9 @@ EntityName :: enum u8 {
 	Tom,
 	Bat,
 	SwordAltar,
+	MirusFireball,
+	TomBoss,
+	MiruBoss,
 }
 
 Entity :: struct {
@@ -116,8 +119,11 @@ UpdateEntities :: proc "contextless" () {
 		UpdateAnimatedSprite( &entity )
 		UpdateDamageMaker( &entity )
 		UpdateDamageReceiver( &entity )
+		UpdateTrigger( &entity )
 
 		UpdateBatBehavior( &entity )
+		UpdateMiruBoss( &entity )
+		UpdateFireBall( &entity )
 	}
 }
 
@@ -159,6 +165,7 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 		if .DamageReceiver not_in ent.flags do continue
 		if ent.id == entity.id do continue
 		if ent.name == entity.name do continue // ideally this should be a "collision layer" check, but I think this should be good enough
+		if entity.name == .MirusFireball && (ent.name == .MiruBoss || ent.name == .Miru) do continue // same here, should be collision layer check
 		if ent.health_points > 0 && IsCollidingWithEntity( hurt_box_world, &ent ) { // apply damage
 			if InflictDamage( &ent ) {
 				entity.inflicted_damage = 1
@@ -210,7 +217,7 @@ UpdateDamageReceiver :: proc "contextless" ( entity: ^Entity ) {
 	}
 
 	DAMAGE_PUSH_BACK_LENGTH :: 16
-	if entity.health_points > 0 && entity.received_damage <= DAMAGE_PUSH_BACK_LENGTH {
+	if !(entity.name == .MiruBoss || entity.name == .TomBoss) && entity.health_points > 0 && entity.received_damage <= DAMAGE_PUSH_BACK_LENGTH {
 		move : ivec2
 		if entity.received_damage == DAMAGE_PUSH_BACK_LENGTH {
 			move = entity.pushed_back_dist
@@ -430,4 +437,11 @@ MoveEntity :: proc "contextless" ( entity: ^Entity, move: ivec2 ) {
 		entity.position = RegularizeCoordinate( entity.position, false )
 	}
 
+}
+
+UpdateTrigger :: proc "contextless" ( entity: ^Entity ) {
+	if .Interactible not_in entity.flags do return
+	#partial switch i in entity.interaction {
+		case ^Trigger: Interaction_CheckTriggerInteraction( entity )
+	}
 }
