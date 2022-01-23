@@ -195,7 +195,7 @@ MiruBossStartInteraction := Trigger {
 }
 MiruBossDialog := DialogDef {
 	"Miru",
-	{{"blah blah", "let's fight"}},
+	{{"I don't like you", "let's fight"}},
 	proc "contextless" () {
 		StartMiruBoss()
 	},
@@ -222,7 +222,7 @@ ents_mirus_boss_room := PopulateData {
 
 TomBossDialog := DialogDef {
 	"Tom",
-	{{"blah blah", "let's fight"}},
+	{{"I can't let", "you go like that"}},
 	proc "contextless" () {
 		StartTomBoss()
 	},
@@ -338,6 +338,13 @@ ents_from_miru_to_tom := PopulateData {
 	},
 }
 
+ents_connecting_room := PopulateData {
+	0, 2,
+	proc "contextless" () {
+		DisableAllLightsAndEnableDarkness()
+	},
+}
+
 HeartChest := Container {
 	proc "contextless" ( ent_id: u8 ) {
 		chest := GetEntityById( ent_id )
@@ -377,4 +384,5 @@ populate_funcs := []^PopulateData {
 	&ents_toms_boss_room,
 	&ents_from_miru_to_tom,
 	&ents_heart_chest,
+	&ents_connecting_room,
 }

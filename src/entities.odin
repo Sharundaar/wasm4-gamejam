@@ -39,16 +39,18 @@ BatDeathDialog3 := DialogDef {
 MakeBatEntity :: proc "contextless" ( x, y: i32 ) -> ^Entity {
 	ent := AllocateEntity( EntityName.Bat )
 
-	ent.name = EntityName.Bat
-	ent.position = { {}, { x, y } }
-	ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
-	ent.collider = { {}, {8, 8} }
-	ent.hurt_box = { { 0, 2 }, {8, 7} }
-	ent.animated_sprite.sprite = &BatAnimation
-	ent.health_points = 2
-	ent.palette_mask = 0x130
-	ent.damage_flash_palette = 0x110
-	ent.picked_point = ent.position.offsets
+	if ent != nil {
+		ent.name = EntityName.Bat
+		ent.position = { {}, { x, y } }
+		ent.flags += { .AnimatedSprite, .DamageReceiver, .DamageMaker }
+		ent.collider = { {}, {8, 8} }
+		ent.hurt_box = { { 0, 2 }, {8, 7} }
+		ent.animated_sprite.sprite = &BatAnimation
+		ent.health_points = 2
+		ent.palette_mask = 0x130
+		ent.damage_flash_palette = 0x110
+		ent.picked_point = ent.position.offsets
+	}
 
 	return ent
 }

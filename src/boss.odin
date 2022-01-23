@@ -212,6 +212,13 @@ TomBossDeath :: proc "contextless" () {
 	dead_tom.position.offsets = tom.position.offsets
 	dead_tom.palette_mask = 0x1420
 
+	for ent in &s_EntityPool {
+		if .InUse not_in ent.flags do continue
+		if ent.name == .Bat {
+			DestroyEntity( &ent )
+		}
+	}
+
 	Dialog_Start( &TomsDeathDialog )
 }
 
@@ -277,7 +284,9 @@ UpdateTomBoss :: proc "contextless" ( tom: ^Entity ) {
 				opposite_corner = GetTileWorldCoordinate(-1, -1)
 			}
 			bat := MakeBatEntity( opposite_corner.x, opposite_corner.y )
-			bat.picked_point = p.position.offsets
+			if bat != nil {
+				bat.picked_point = p.position.offsets
+			}
 		}
 	}
 
