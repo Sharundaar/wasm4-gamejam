@@ -148,7 +148,7 @@ UpdateMiruBoss :: proc "contextless" ( miru: ^Entity ) {
 		if s_MiruBossData.frame_counter < 60 {
 			miru.position.offsets = { -16, -16 }
 		}
-		if s_MiruBossData.frame_counter >= 60 && s_MiruBossData.frame_counter % 120 == 0 {
+		if s_MiruBossData.frame_counter >= 60 && s_MiruBossData.frame_counter % 120 == 0 && s_MiruBossData.frame_counter <= 160 {
 			v := player.position.offsets - miru.position.offsets
 			v_norm := normalize_vec2( v )
 			dir := v_norm * 1000
@@ -166,7 +166,7 @@ UpdateMiruBoss :: proc "contextless" ( miru: ^Entity ) {
 			}
 			s_MiruBossData.light_idx = EnableFirstAvailableLight( miru.position.offsets + rect_size( miru.collider ) / 2, 2, 0.25 )
 		}
-		if s_MiruBossData.frame_counter >= 160 {
+		if s_MiruBossData.frame_counter >= 160+60 {
 			DisableLight( s_MiruBossData.light_idx )
 			s_MiruBossData.frame_counter = 0
 		}
