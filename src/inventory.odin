@@ -8,6 +8,9 @@ INVENTORY_ITEM_SIZE :: 8
 InventoryItem :: enum {
 	Sword,
 	Torch,
+	HoldItemCount,
+
+	Heart,
 	Count,
 }
 
@@ -17,13 +20,15 @@ InventoryUIData :: struct {
 }
 s_InventoryUIData := InventoryUIData {
 	{
-		{ 0, 5, 0x2140 },
-		{ 5, 5, 0x2043 },
+		{ 0, 5, 0x2140 }, // Sword
+		{ 5, 5, 0x2043 }, // Torch
+		{}, // Count
+		{ 11, 7, 0x2003 }, // Heart
 	},
 }
 
 Inventory :: struct {
-	items: [InventoryItem.Count]b8, // true if item is owned
+	items: [InventoryItem.HoldItemCount]b8, // true if item is owned
 	current_item: u8,
 }
 
@@ -70,7 +75,13 @@ Inventory_GiveNewItem :: proc "contextless" ( entity: ^Entity, item: InventoryIt
 }
 
 Inventory_GiveNewItem_Immediate :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) {
-	entity.inventory.items[item] = true
+	switch item {
+		case InventoryItem(0) .. .HoldItemCount:
+			entity.inventory.items[item] = true
+		case .Heart: entity.max_health_points += 2
+			entity.health_points = entity.max_health_points
+		case .Count:
+	}
 }
 
 Inventory_HasItem :: proc "contextless" ( entity: ^Entity, item: InventoryItem ) -> bool {
@@ -87,16 +98,6 @@ NewItemMusic := Sound {
 		{ 300, 300, 15, {sustain=20}, .Pulse2, 25 },
 		{ 500, 500, 25, {sustain=20}, .Pulse1, 25 },
 		{ 700, 700, 40, {sustain=20}, .Pulse1, 25 },
-		// { 800, 100, 27, {sustain=30}, .Pulse2, 25 },
-		/*
-		{ 400, 400, 0, {sustain=10}, .Pulse1, 25 },
-		{ 800, 800, 11, {sustain=10}, .Pulse1, 25 },
-		{ 1000, 1000, 22, {sustain=10}, .Pulse1, 25 },
-		{ 3000, 3000, 33, {sustain=10}, .Pulse2, 25 },
-		*/
-		// { 2500, 3000, 33, {sustain=10}, .Pulse2, 25 },
-		// { 600, 600, 0, {sustain=40}, .Pulse2, 25 },
-		// { 1000, 1000, 41, {sustain=40}, .Pulse2, 25 },
 	},
 }
 
@@ -122,7 +123,9 @@ NewItemAnimation_Update :: proc "contextless" () {
 	if s_gglob.new_item_animation_counter > ANIMATION_DURATION {
 		s_gglob.game_state = GameState.Game
 		Inventory_GiveNewItem_Immediate( s_gglob.new_item_entity_target, s_gglob.new_item )
-		Inventory_SelectItem( &s_gglob.new_item_entity_target.inventory, s_gglob.new_item )
+		if s_gglob.new_item < .HoldItemCount {
+			Inventory_SelectItem( &s_gglob.new_item_entity_target.inventory, s_gglob.new_item )
+		}
 	}
 
 	s_gglob.new_item_animation_counter += 1

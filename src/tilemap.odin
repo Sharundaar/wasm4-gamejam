@@ -99,9 +99,10 @@ GetTileLocalCoordinate :: proc {
 	GetTileLocalCoordinate_Vec,
 }
 
-GetTileDefForCoordinates :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x, y: i32 ) -> TileDefinition {
+GetTileDefForCoordinates :: proc "contextless" ( tilemap: ^TileMap, chunk_x, chunk_y, x, y: i32 ) -> ^TileDefinition {
 	coords := GetTileLocalCoordinate( x, y )
-	return tilemap.tiledef[tilemap.chunks[chunk_y * TILEMAP_CHUNK_COUNT_W + chunk_x].tiles[coords.y * TILE_CHUNK_COUNT_W + coords.x]]
+	if coords.x < 0 || coords.x >= TILE_CHUNK_COUNT_W || coords.y < 0 || coords.y >= TILE_CHUNK_COUNT_H do return nil
+	return &tilemap.tiledef[tilemap.chunks[chunk_y * TILEMAP_CHUNK_COUNT_W + chunk_x].tiles[coords.y * TILE_CHUNK_COUNT_W + coords.x]]
 }
 
 GetChunkFromChunkCoordinates :: proc "contextless" ( tilemap: ^TileMap, x, y: i32 ) -> ^TileChunk {

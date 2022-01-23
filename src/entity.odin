@@ -122,6 +122,7 @@ UpdateEntities :: proc "contextless" () {
 		UpdateTrigger( &entity )
 
 		UpdateBatBehavior( &entity )
+		UpdateTomBoss( &entity )
 		UpdateMiruBoss( &entity )
 		UpdateFireBall( &entity )
 	}
@@ -166,6 +167,8 @@ UpdateDamageMaker :: proc "contextless" ( entity: ^Entity ) {
 		if ent.id == entity.id do continue
 		if ent.name == entity.name do continue // ideally this should be a "collision layer" check, but I think this should be good enough
 		if entity.name == .MirusFireball && (ent.name == .MiruBoss || ent.name == .Miru) do continue // same here, should be collision layer check
+		if entity.name == .Bat && (ent.name == .TomBoss || ent.name == .Tom) do continue
+		if ent.name == .Bat && (entity.name == .TomBoss || entity.name == .Tom) do continue
 		if ent.health_points > 0 && IsCollidingWithEntity( hurt_box_world, &ent ) { // apply damage
 			if InflictDamage( &ent ) {
 				entity.inflicted_damage = 1

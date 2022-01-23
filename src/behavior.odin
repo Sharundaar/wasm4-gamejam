@@ -29,9 +29,6 @@ UpdateBatBehavior :: proc "contextless" ( entity: ^Entity, force := false ) {
 		// print_int( i32(entity.picked_point_counter) )
 	}
 
-	BAT_W :: 8
-	BAT_H :: 8
-
 	if entity.picked_point_counter > 0 {
 		entity.picked_point_counter -= 1
 	}

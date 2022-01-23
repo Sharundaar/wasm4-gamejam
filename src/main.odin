@@ -7,10 +7,10 @@ SHOW_HURT_BOX :: false
 SHOW_COLLIDER :: false
 SHOW_LAST_VALID_POSITION :: false
 SHOW_TILE_BROADPHASE_TEST :: false
-SKIP_INTRO :: false
-START_WITH_SWORD :: false
+SKIP_INTRO :: true
+START_WITH_SWORD :: true
 TEST_DEATH_ANIMATION :: false
-NO_CLIP :: false
+NO_CLIP :: true
 
 import "w4"
 import "core:math"
@@ -344,6 +344,7 @@ DrawStatusUI :: proc "contextless" () {
 		even := (i % 2) == 0
 		flags := half_heart.flags
 		if !even do flags += {.FLIPX}
+		if player.health_points == 0 do w4.DRAW_COLORS^ = 0x0020
 		w4.blit( &half_heart.bytes[0], x, HEART_TOP_POSITION, half_heart.w, half_heart.h, flags )
 		if player.health_points <= (i+1) do w4.DRAW_COLORS^ = 0x0020
 		x += i32(half_heart.w) if even else HEART_SPACING
@@ -401,12 +402,12 @@ start :: proc "c" () {
 			player.position.offsets = { 76, 76 }
 		} else {
 			// official entrance
-			player.position.chunk = { 0, 3 }
-			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			// player.position.chunk = { 0, 3 }
+			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// tom room
-			// player.position.chunk = { 3, 2 }
-			// player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
+			player.position.chunk = { 3, 2 }
+			player.position.offsets = GetTileWorldCoordinate( 1, 4 ) + { 2, 4 }
 
 			// sword altar room
 			// player.position.chunk = { 3, 4 }
@@ -415,6 +416,11 @@ start :: proc "c" () {
 			// mirus boss room
 			// player.position.chunk = { 1, 4 }
 			// player.position.offsets = GetTileWorldCoordinate( 9, 7 ) + { 2, 2 }
+
+			// toms boss room
+			// player.position.chunk = { 4, 1 }
+			// player.position.offsets = GetTileWorldCoordinate( 2, 8 ) + { 2, 2 }
+			// Quest_Complete( .KilledBat3 )
 
 			// mirus room
 			// player.position.chunk = { 2, 3 }
@@ -572,7 +578,7 @@ update :: proc "c" () {
 		UpdateEntities()
 	
 		lights[0].enabled = Inventory_HasItemSelected( player, .Torch ) || s_gglob.game_state == GameState.GameOverAnimation
-		lights[0].pos = player.position.offsets
+		lights[0].pos = player.position.offsets + { HALF_PLAYER_W, HALF_PLAYER_H }
 		lights[0].r = f32(((fake_sin(f32(global_frame_counter) / 60 ) + 1) / 2.0 ) * (0.35 - 0.125) + 0.125)
 		lights[0].s = 3
 	

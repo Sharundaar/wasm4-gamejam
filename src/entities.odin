@@ -328,10 +328,10 @@ MakeTomEntity :: proc "contextless" () -> ^Entity {
 	ent.flags += {.AnimatedSprite, .Collidable}
 	ent.animated_sprite.sprite = &TomSprite_Front
 	ent.looking_dir = { 0, 1 }
-	ent.collider = { { 0, 0 }, { 16, 16 } }
+	ent.collider = { {}, { 16, 16 } }
 	ent.palette_mask = 0x1420
-	ent.max_health_points = 30
-	ent.health_points = 30
+	ent.max_health_points = 15
+	ent.health_points = 15
 
 	return ent
 }
